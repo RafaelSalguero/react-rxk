@@ -36,7 +36,18 @@ export function componentToRx<TProps>(component: (React.ComponentClass<TProps> |
 
         private handleNext = <K extends keyof TProps>(key: K, value: any) => {
             const change = { [key]: value } as {[K in keyof TProps]: any};
-            this.setState(change);
+            this.values[key] = value;
+            if(this.mounted) {
+                this.setState(change);
+            }
+        }
+
+        private mounted: boolean = false;
+        componentDidMount() {
+                this.mounted = true;
+        }
+        componentWillUnmount() {
+            this.mounted= false;
         }
 
         private processProps(old: Rxfy<TProps>, next: Rxfy<TProps>) {
