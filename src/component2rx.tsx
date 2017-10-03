@@ -32,6 +32,9 @@ export function componentToRx<TProps>(component: (React.ComponentClass<TProps> |
         }
 
         private subscriptions: {[K in keyof TProps]?: rx.Subscription | undefined } = {};
+        /**
+         * Values object will be a fall back for when the observable update occur before the setState can be called
+         */
         private values: {[K in keyof TProps]?: TProps[K]} = {};
 
         private handleNext = <K extends keyof TProps>(key: K, value: any) => {
@@ -55,14 +58,14 @@ export function componentToRx<TProps>(component: (React.ComponentClass<TProps> |
             for (const prop in diff) {
                 const oldValue = old[prop];
                 const nextValue = next[prop];
-                //Eliminamos la subscripción anterior:
+                //Remove old subscription
                 const oldSubscription = this.subscriptions[prop];
                 if (oldSubscription) {
                     oldSubscription.unsubscribe();
                     this.subscriptions[prop] = undefined;
                 }
 
-                //creamos la nueva subscripcion:
+                //Create the new subscription
                 if (isObservable(nextValue)) {
                     this.subscriptions[prop] = nextValue.subscribe(next => this.handleNext(prop, next));
                 }
@@ -74,7 +77,8 @@ export function componentToRx<TProps>(component: (React.ComponentClass<TProps> |
         }
 
         render() {
-            const rxValues = mapObject(this.state, (x, key) => (x === undefined ? this.values[key] : x) as any);
+            //Fallback to this.values if current state value is undefined
+            const rxValues = mapObject(this.values, (x, key) => (this.state[key] === undefined ?  x: this.state[key]) as any);
             const externalProps = this.props as Rxfy<TProps>;
             const props = mapObject(externalProps, (x, key) => isObservable(x) ? rxValues[key] : (x as any));
             return <MyComp {...props} />
