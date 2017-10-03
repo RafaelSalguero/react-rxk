@@ -1,6 +1,6 @@
 {
   "name": "react-rxk",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Higher order component to make any component accept RxJS observables as props",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -11,7 +11,7 @@
   },
   "repository": {
     "type": "git",
-    "url": ""
+    "url": "https://github.com/RafaelSalguero/react-rxk.git"
   },
   "author": "Rafael Salguero Iturrios <rafaelsalgueroiturrios@gmail.com>",
   "license": "MIT",
