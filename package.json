@@ -1,0 +1,33 @@
+{
+  "name": "react-rxk",
+  "version": "1.0.0",
+  "description": "Higher order component to make any component accept RxJS observables as props",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node node_modules/webpack-dev-server/bin/webpack-dev-server  --config \"./test/webpack.config.js\"",
+    "prepare": "tsc"
+  },
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "author": "Rafael Salguero Iturrios <rafaelsalgueroiturrios@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "keautils": "^1.3.7",
+    "react": "^16.0.0",
+    "rxjs": "^5.4.3"
+  },
+  "devDependencies": {
+    "@types/react": "^16.0.7",
+    "@types/react-dom": "^15.5.5",
+    "awesome-typescript-loader": "^3.2.3",
+    "html-webpack-plugin": "^2.30.1",
+    "react-dom": "^16.0.0",
+    "typescript": "^2.5.3",
+    "webpack": "^2.7.0",
+    "webpack-dev-server": "^2.9.1"
+  }
+}
