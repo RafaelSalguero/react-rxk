@@ -42,12 +42,21 @@ export class App extends React.PureComponent {
     private timerOtro = rx.Observable.timer(0, 500);
     private cargando = rx.Observable.timer(1000).map(x => "" + x);
     private inmediato = new rx.BehaviorSubject("Hola");
+    private error = new rx.Subject<string>();
+    constructor(props) {
+        super(props);
+        
+        setTimeout(() => {
+            this.error.error("Este es un error");
+        }, 3000);
+    }
     render() {
         return (
             <div>
                 <MyCompRx a={this.timerA} b={this.timerB} c={33} />
                 <TextoRx texto={this.cargando} />
                 <TextoRx texto={this.inmediato} />
+                <TextoRx texto={this.error} />
                 {rxToReact(this.timerOtro.map(x => <span>Otro: {x}</span>))}
             </div>
         )
