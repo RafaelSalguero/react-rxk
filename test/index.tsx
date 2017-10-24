@@ -17,23 +17,37 @@ class MyComp extends React.PureComponent<MyProps> {
                 <label>b:</label>{this.props.b}
                 <br />
                 <label>c:</label>{this.props.c}
+                <br />
             </div>)
     }
 }
 
-const MyCompRx = componentToRx(MyComp);
+class Texto extends React.PureComponent<{ texto: string }> {
+    render() {
+        return (
+            <div>
+                <span>El texto es: {this.props.texto}</span>
+                <br />
+            </div>
+        );
+    }
+}
 
+const MyCompRx = componentToRx(MyComp);
+const TextoRx = componentToRx(Texto, <span>Cargando...</span>);
 export class App extends React.PureComponent {
     private timerA = rx.Observable.timer(0, 1000);
     private timerB = rx.Observable.timer(0, 800);
 
     private timerOtro = rx.Observable.timer(0, 500);
-
+    private cargando = rx.Observable.timer(1000).map(x => "" + x);
+    private inmediato = new rx.BehaviorSubject("Hola");
     render() {
         return (
             <div>
                 <MyCompRx a={this.timerA} b={this.timerB} c={33} />
-
+                <TextoRx texto={this.cargando} />
+                <TextoRx texto={this.inmediato} />
                 {rxToReact(this.timerOtro.map(x => <span>Otro: {x}</span>))}
             </div>
         )

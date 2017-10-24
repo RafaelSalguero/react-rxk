@@ -11,7 +11,7 @@ function isObservable<T>(x: T | rx.Observable<T>): x is rx.Observable<T> {
     if (x == null) return false;
     const y = x as rx.Observable<T>;
     const sym = y[rx.Symbol.observable];
-    if( typeof sym == "function") {
+    if (typeof sym == "function") {
         return (sym as Function).call(y) === y;
     } else {
         return false;
@@ -20,37 +20,51 @@ function isObservable<T>(x: T | rx.Observable<T>): x is rx.Observable<T> {
 
 /**
  * Convert a react component to a one that accepts rxjs observable on all its props
- * @param component 
+ * @param component The component to render when all observables have reported at least one value
+ * @param fallback The element to render when there are still pending observables to report the first value. If undefined the component is rendered with undefined values
  */
-export function componentToRx<TProps>(component: (React.ComponentClass<TProps> | ((props: TProps) => (JSX.Element | null)))): React.ComponentClass<Rxfy<TProps>> {
+export function componentToRx<TProps>(component: (React.ComponentClass<TProps> | ((props: TProps) => (JSX.Element | null))), fallback?: JSX.Element): React.ComponentClass<Rxfy<TProps>> {
     const MyComp = component;
     return class ComponentToRx extends React.PureComponent<Rxfy<TProps>, Partial<TProps>> {
         constructor(props) {
             super(props);
             this.state = {} as Readonly<Partial<TProps>>;
-            this.processProps({} as any, props);
         }
-
+        
         private subscriptions: {[K in keyof TProps]?: rx.Subscription | undefined } = {};
         /**
-         * Values object will be a fall back for when the observable update occur before the setState can be called
+         * Contiene true para los valores que ya llegaron de las subscripciones, si hay subscripciones que no tengan el firstValue significa que el componente aún
+         * no se puede mostrar ya que hay valores pendientes
          */
-        private values: {[K in keyof TProps]?: TProps[K]} = {};
-
+        private firstValue: {[K in keyof TProps]?: true} = {};
+        
+        /**Devuelve true si el componente esta listo para mostrar, esto es si ya fue recibido el primer valor de todas las subscripciones */
+        private get ready() {
+            for (const key in this.subscriptions) {
+                if(!this.firstValue[key])
+                return false;
+            }
+            return true;
+        }
+        
         private handleNext = <K extends keyof TProps>(key: K, value: any) => {
             const change = { [key]: value } as {[K in keyof TProps]: any};
-            this.values[key] = value;
-            if(this.mounted) {
-                this.setState(change);
-            }
+            this.firstValue[key] = true;
+            this.setState(change);
         }
-
-        private mounted: boolean = false;
-        componentDidMount() {
-                this.mounted = true;
+        
+        componentWillMount() {
+            this.processProps({} as any, this.props);
         }
+        
         componentWillUnmount() {
-            this.mounted= false;
+            //Quitar todas las subscripciones
+            for (const key in this.subscriptions) {
+                const value = this.subscriptions[key];
+                if (value) {
+                    value.unsubscribe();
+                }
+            }
         }
 
         private processProps(old: Rxfy<TProps>, next: Rxfy<TProps>) {
@@ -78,10 +92,15 @@ export function componentToRx<TProps>(component: (React.ComponentClass<TProps> |
 
         render() {
             //Fallback to this.values if current state value is undefined
-            const rxValues = mapObject(this.values, (x, key) => (this.state[key] === undefined ?  x: this.state[key]) as any);
-            const externalProps = this.props as Rxfy<TProps>;
-            const props = mapObject(externalProps, (x, key) => isObservable(x) ? rxValues[key] : (x as any));
-            return <MyComp {...props} />
+            if(this.ready || fallback === undefined) {
+                const rxValues = this.state;
+                const externalProps = this.props as Rxfy<TProps>;
+                const props = mapObject(externalProps, (x, key) => isObservable(x) ? rxValues[key] : (x as any));
+                return <MyComp {...props} />
+            } else {
+                return fallback;
+            }
+            
         }
     }
 }
