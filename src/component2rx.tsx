@@ -30,7 +30,7 @@ export function componentToRx<TProps>(component: (React.ComponentClass<TProps> |
         firstValue: {[K in keyof TProps]?: true};
         error: any;
     }
-    return class ComponentToRx extends React.PureComponent<Rxfy<TProps>, State> {
+    return class ComponentToRx extends React.Component<Rxfy<TProps>, State> {
         constructor(props) {
             super(props);
             this.state = {
