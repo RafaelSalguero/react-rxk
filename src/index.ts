@@ -1,2 +1,2 @@
 export { rxToReact } from "./rxToReact";
-export { componentToRx } from "./component2rx";
+export { componentToRx, Rxfy } from "./component2rx";
