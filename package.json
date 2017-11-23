@@ -1,13 +1,13 @@
 {
   "name": "react-rxk",
-  "version": "1.0.8",
+  "version": "2.0.8",
   "description": "Higher order component to make any component accept RxJS observables as props",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node node_modules/webpack-dev-server/bin/webpack-dev-server  --config \"./test/webpack.config.js\"",
-    "prepare": "tsc"
+    "prepublishOnly": "tsc"
   },
   "repository": {
     "type": "git",
