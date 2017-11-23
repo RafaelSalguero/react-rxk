@@ -1,5 +1,5 @@
 # react-rx
-Higher order component to make any component accept RxJS observables as props
+Higher order component to make any component accept RxJS observables and promises as props
 
 ### Create a component
 ```js
