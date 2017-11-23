@@ -9,6 +9,6 @@ const DummyRx = componentToRx(Dummy);
  * Convert an observable of JSX.Element on to a JSX.Element
  * @param observable A stream of JSX.Elements
  */
-export function rxToReact(observable: Observable<JSX.Element | null>) {
+export function rxToReact(observable: Observable<JSX.Element | null> | PromiseLike<JSX.Element | null>) {
     return <DummyRx comp={observable} />
 }
