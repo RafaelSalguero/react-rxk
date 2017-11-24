@@ -6,7 +6,7 @@ Higher order component to make any component accept RxJS observables and promise
 interface MyProps {
     time: number;
 }
-class MyComp extends React.PureComponent<MyProps> {
+class MyComp extends React.Component<MyProps> {
     render() {
         return (
             <div>
@@ -25,7 +25,7 @@ const MyCompRx = componentToRx(MyComp);
 
 ### Use the RxJS compatible component
 ```js
-export class App extends React.PureComponent {
+export class App extends React.Component {
     private timer = rx.Observable.timer(0, 1000);
    
     render() {
@@ -42,7 +42,7 @@ export class App extends React.PureComponent {
 ### Or use the `rxToReact` function to render a stream of components
 
 ```js
-export class App extends React.PureComponent {
+export class App extends React.Component {
     private timer = rx.Observable.timer(0, 1000);
     render() {
         return (

@@ -12,7 +12,7 @@ interface MyProps {
     b: number;
     c: number;
 }
-class MyComp extends React.PureComponent<MyProps> {
+class MyComp extends React.Component<MyProps> {
     render() {
         return (
             <div>
@@ -33,7 +33,7 @@ interface MyProps2 {
     d?: rx.Observable<string>;
     e?: string;
 }
-class MyComp2 extends React.PureComponent<MyProps2> {
+class MyComp2 extends React.Component<MyProps2> {
     render() {
         return (
             <div>
@@ -74,7 +74,7 @@ class OtraPrueba extends React. Component<{ d: rx.Observable<string>, e: string 
     }
 }
 
-class Texto extends React.PureComponent<{ texto: string }> {
+class Texto extends React.Component<{ texto: string }> {
     render() {
         return (
             <div>
@@ -93,7 +93,7 @@ const MyComp2Rx = componentToRx(MyComp2, <span>Cargando...</span>, undefined, {
     d: { ignore: { observable: true } }
 });
 const TextoRx = componentToRx(Texto, <span>Cargando...</span>);
-export class App extends React.PureComponent {
+export class App extends React.Component {
     private timerA = rx.Observable.timer(0, 1000);
     private timerB = rx.Observable.timer(0, 800);
     private timerC = rx.Observable.timer(0, 100);
