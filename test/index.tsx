@@ -62,12 +62,12 @@ class MyComp2 extends React.Component<MyProps2> {
     }
 }
 
-class OtraPrueba extends React. Component<{ d: rx.Observable<string>, e: string }> {
+class OtraPrueba extends React.Component<{ d: rx.Observable<string>, e: string }> {
     render() {
         return (
             <div>
                 {rxToReact(this.props.d.map(x => <span>{x}</span>))}
-                <br/>
+                <br />
                 {this.props.e}
             </div>
         );
@@ -94,7 +94,27 @@ const MyComp2Rx = componentToRx(MyComp2, <span>Cargando...</span>, undefined, {
 });
 const TextoRx = componentToRx(Texto, <span>Cargando...</span>);
 
-const TextoRxInicial = componentToRx(Texto, undefined, undefined, { texto: { initial: "Valor inicial promesa/rxjs sin resolver"}});
+const TextoRxInicial = componentToRx(Texto, undefined, undefined, {
+    texto: { initial: "Valor inicial promesa/rxjs sin resolver" },
+});
+
+
+class LoadingComponent extends React.PureComponent<{ texto: string, loading?: boolean }> {
+    render() {
+        return (
+            <div>
+                <span>El texto es: {this.props.texto}</span>
+                <br />
+                <span>Actualmente esta cargando: {"" + this.props.loading}</span>
+                <br />
+            </div>
+        );
+    }
+}
+
+const LoadingComponentRx = componentToRx(LoadingComponent, undefined, undefined, {
+    loading: { loading: true }
+});
 
 export class App extends React.Component {
     private timerA = rx.Observable.timer(0, 1000);
@@ -134,9 +154,13 @@ export class App extends React.Component {
 
                 <TextoRxInicial texto={this.promesa} />
 
-                <OtraPruebaRx 
+                <OtraPruebaRx
                     d={this.timerC.map(x => "timer otro mapeo 2 a: " + x)}
                     e={this.timerA.map(x => "timer otro mapeo 3 a: " + x)} />
+
+                <LoadingComponentRx texto={delay(4000).then(x => "Se terminó la promesa")} />
+                <LoadingComponentRx texto={delay(4000).then(x => "Siempre cargando")} loading={true} />
+                <LoadingComponentRx texto={delay(4000).then(x => "Nunca cargando")} loading={false} />
             </div>
         )
     }

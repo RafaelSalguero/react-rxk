@@ -1,7 +1,7 @@
 import { rxToReact } from "./rxToReact";
 import * as rx from "rxjs";
 import * as React from "react";
-import { shallowDiff, mapObject } from "keautils";
+import { shallowDiff, mapObject, filterObject } from "keautils";
 
 export type Rxfy<T> = {
     [K in keyof T]: T[K] | rx.Observable<T[K]> | PromiseLike<T[K]>
@@ -45,6 +45,8 @@ export interface ComponentToRxPropOptions<T> {
     },
     /**Initial value for the property */
     initial?: any;
+    /**If true this property value will be true when the observables are pending for the first value and false when the loading is done */
+    loading?: boolean;
 };
 
 export type ComponentToRxOptions<TProps> = {[K in keyof TProps]?: ComponentToRxPropOptions<TProps[K]> } | undefined;
@@ -174,10 +176,15 @@ export function componentToRx<TProps>(
 
             const rxValues = this.state.values;
             const externalProps = this.props as Rxfy<TProps>;
-            const props = mapObject(externalProps, (x, key) => toComponentRxObservable(key, x, options).observe ? rxValues[key] : (x as any));
+            const values = mapObject(externalProps, (x, key) => toComponentRxObservable(key, x, options).observe ? rxValues[key] : (x as any));
+
+            const ready = this.ready;
+            const loading = !ready;
+            const loadingProps = mapObject(filterObject((options || {}), x => !!(x && x.loading)), x => loading);
+            const props = { ...(loadingProps as {}), ...(values as {}) };
 
             //Render the inner or the fallback component
-            const ComponentToRender = (this.ready || !Fallback) ? MyComp :
+            const ComponentToRender = (ready || !Fallback) ? MyComp :
                 isJsxElement(Fallback) ? (() => Fallback) :
                     Fallback;
 
