@@ -93,6 +93,9 @@ const MyComp2Rx = componentToRx(MyComp2, <span>Cargando...</span>, undefined, {
     d: { ignore: { observable: true } }
 });
 const TextoRx = componentToRx(Texto, <span>Cargando...</span>);
+
+const TextoRxInicial = componentToRx(Texto, undefined, undefined, { texto: { initial: "Valor inicial promesa/rxjs sin resolver"}});
+
 export class App extends React.Component {
     private timerA = rx.Observable.timer(0, 1000);
     private timerB = rx.Observable.timer(0, 800);
@@ -129,7 +132,7 @@ export class App extends React.Component {
                     e={"Cadena establecida directamente"}
                 />
 
-
+                <TextoRxInicial texto={this.promesa} />
 
                 <OtraPruebaRx 
                     d={this.timerC.map(x => "timer otro mapeo 2 a: " + x)}

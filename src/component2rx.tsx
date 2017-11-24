@@ -43,6 +43,8 @@ export interface ComponentToRxPropOptions<T> {
          */
         promise?: boolean
     },
+    /**Initial value for the property */
+    initial?: any;
 };
 
 export type ComponentToRxOptions<TProps> = {[K in keyof TProps]?: ComponentToRxPropOptions<TProps[K]> } | undefined;
@@ -85,7 +87,7 @@ export function componentToRx<TProps>(
             super(props);
             this.state = {
                 error: undefined,
-                values: {},
+                values: mapObject(options || {}, x => x && x.initial),
                 firstValue: {}
             };
         }
