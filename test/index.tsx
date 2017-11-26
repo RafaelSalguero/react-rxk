@@ -165,14 +165,14 @@ export class App extends React.Component<{}, { prom: Promise<number>, promValue:
             this.error.error("Este es un error");
         }, 3000);
 
-        rx.Observable.timer(0, 2000).subscribe(x => this.setState({ prom: delay(400).then(y => x), promValue: x }));
+        //rx.Observable.timer(0, 2000).subscribe(x => this.setState({ prom: delay(400).then(y => x), promValue: x }));
     }
     render() {
         return (
             <div>
-                <PromLoadingCompRx a={this.state.prom} b={this.state.promValue} />
+                {/* <PromLoadingCompRx a={this.state.prom} b={this.state.promValue} /> */}
                                 
-                {/* <MyCompRx a={this.timerA} b={this.timerB} c={33} />
+                <MyCompRx a={this.timerA} b={this.timerB} c={33} />
                 <TextoRx texto={this.cargando} />
                 <TextoRx texto={this.inmediato} />
                 <TextoRx texto={this.error} />
@@ -194,7 +194,7 @@ export class App extends React.Component<{}, { prom: Promise<number>, promValue:
 
                 <LoadingComponentRx texto={delay(4000).then(x => "Se terminó la promesa")} />
                 <LoadingComponentRx texto={delay(4000).then(x => "Siempre cargando")} loading={true} />
-                <LoadingComponentRx texto={delay(4000).then(x => "Nunca cargando")} loading={false} /> */}
+                <LoadingComponentRx texto={delay(4000).then(x => "Nunca cargando")} loading={false} />
             </div>
         )
     }
