@@ -116,7 +116,32 @@ const LoadingComponentRx = componentToRx(LoadingComponent, undefined, undefined,
     loading: { loading: true }
 });
 
-export class App extends React.Component {
+
+class PromLoadingComponent extends React.PureComponent<{ a: number, b: number, loading?: boolean }> {
+    render() {
+        const noConsistente = this.props.a != this.props.b && !this.props.loading;
+        if(noConsistente) {
+            console.log("ERROR no consistente");
+        }
+        return (
+            <div>
+                <span>a: {this.props.a}</span>
+                <br />
+                <span>b: {this.props.b}</span>
+                <br />
+                <span>cargando: {"" + this.props.loading}</span>
+
+                <br />
+                {noConsistente && <span style={{ background: "red" }} >ERROR NO CONSISTENTE</span>}
+
+            </div>
+        )
+    }
+}
+
+const PromLoadingCompRx = componentToRx(PromLoadingComponent, undefined, undefined, { loading: { loading: true } });
+
+export class App extends React.Component<{}, { prom: Promise<number>, promValue: number }> {
     private timerA = rx.Observable.timer(0, 1000);
     private timerB = rx.Observable.timer(0, 800);
     private timerC = rx.Observable.timer(0, 100);
@@ -130,15 +155,23 @@ export class App extends React.Component {
 
     constructor(props) {
         super(props);
+        this.state = {
+            prom: delay(300).then(x => 12),
+            promValue: 12
+        };
 
         setTimeout(() => {
             this.error.error("Este es un error");
         }, 3000);
+
+        rx.Observable.timer(0, 1500).subscribe(x => this.setState({ prom: delay(0).then(y => x), promValue: x }));
     }
     render() {
         return (
             <div>
-                <MyCompRx a={this.timerA} b={this.timerB} c={33} />
+                <PromLoadingCompRx a={this.state.prom} b={this.state.promValue} />
+                                
+                {/* <MyCompRx a={this.timerA} b={this.timerB} c={33} />
                 <TextoRx texto={this.cargando} />
                 <TextoRx texto={this.inmediato} />
                 <TextoRx texto={this.error} />
@@ -160,7 +193,7 @@ export class App extends React.Component {
 
                 <LoadingComponentRx texto={delay(4000).then(x => "Se terminó la promesa")} />
                 <LoadingComponentRx texto={delay(4000).then(x => "Siempre cargando")} loading={true} />
-                <LoadingComponentRx texto={delay(4000).then(x => "Nunca cargando")} loading={false} />
+                <LoadingComponentRx texto={delay(4000).then(x => "Nunca cargando")} loading={false} /> */}
             </div>
         )
     }

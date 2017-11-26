@@ -1,6 +1,7 @@
 import { Observable } from "rxjs/Observable"
 import * as React from "react";
-import { componentToRx, ComponentToRxPropOptions, ReactComponent } from "./component2rx";
+import { componentToRx, ComponentToRxPropOptions } from "./component2rx";
+import { ReactComponent } from "./types";
 
 
 const dummy = (props: { comp: JSX.Element | null }) => props.comp || null;

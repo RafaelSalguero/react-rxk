@@ -1,13 +1,10 @@
 import { rxToReact } from "./rxToReact";
 import * as rx from "rxjs";
 import * as React from "react";
-import { shallowDiff, mapObject, filterObject } from "keautils";
+import { shallowDiff, mapObject, filterObject, enumObject } from "keautils";
+import { Rxfy, State, ReactComponent } from "./types";
+import { ViewProps, Component2RxView } from "./view";
 
-export type Rxfy<T> = {
-    [K in keyof T]: T[K] | rx.Observable<T[K]> | PromiseLike<T[K]>
-}
-
-export type ReactComponent<TProps> = React.ComponentClass<TProps> | ((props: TProps) => (JSX.Element | null));
 
 /**Check if a value is an observable */
 function isObservable<T>(x: T | rx.Observable<T> | PromiseLike<T>): x is rx.Observable<T> {
@@ -26,10 +23,7 @@ function isPromise<T>(x: T | PromiseLike<T> | rx.Observable<T>): x is Promise<T>
     return x != null && (typeof (x as any).then === 'function');
 }
 
-/**Check if a value is a JSX.Element */
-function isJsxElement(x: any): x is JSX.Element {
-    return React.isValidElement(x);
-}
+
 
 export interface ComponentToRxPropOptions<T> {
     /**Ignored observables or promises are passes as-is to the inner component */
@@ -69,47 +63,120 @@ function toComponentRxObservable<TProps, K extends keyof TProps>(key: K, value: 
 
 /**
  * Convert a react component to a one that accepts rxjs observable on all its props
- * @param component The component to render when all observables have reported at least one value
+ * @param Component The component to render when all observables have reported at least one value
  * @param fallback The element to render when there are still pending observables to report the first value. If undefined the component is rendered with undefined values
  */
 export function componentToRx<TProps>(
-    component: ReactComponent<TProps>,
+    Component: ReactComponent<TProps>,
     Fallback?: ReactComponent<any> | JSX.Element,
     Error?: ReactComponent<{ error: any }>,
     options?: ComponentToRxOptions<TProps>): React.ComponentClass<Rxfy<TProps>> {
 
-    const MyComp = component;
-    interface State {
-        values: Partial<TProps>;
-        firstValue: {[K in keyof TProps]?: true};
-        error: any;
+    const MyComp = Component;
+
+
+    interface Subscription {
+        /**The original subscription */
+        subscription: rx.Subscription;
+        /**True if the first value for the subscription has arrived */
+        firstValue: boolean;
     }
+
+    type Subscriptions = {[K in keyof TProps]?: Subscription};
+
+    /**Return true if all subscriptions have its firstValue == true */
+    function isReady(x: Subscriptions): boolean {
+        for (const key in x) {
+            if (!x[key]!.firstValue)
+                return false;
+        }
+        return true;
+    }
+
+    function processProps(oldProps: Rxfy<TProps>, nextProps: Rxfy<TProps>, oldSubscriptions: Subscriptions, subscribe: (observable: rx.Observable<any>, prop: keyof TProps) => rx.Subscription): Subscriptions {
+        const diff = shallowDiff(oldProps, nextProps);
+        let nextSubscriptions = { ...(oldSubscriptions as any) };
+        for (const prop in diff) {
+            const oldValue = oldProps[prop];
+            const nextValue = nextProps[prop];
+            //Remove old subscription
+            const oldSubscription = oldSubscriptions[prop];
+            if (oldSubscription) {
+                oldSubscription.subscription.unsubscribe();
+                nextSubscriptions[prop] = undefined;
+            }
+
+            //Create the new subscription
+            const obs = toComponentRxObservable(prop, nextValue, options);
+            if (obs.observe) {
+                nextSubscriptions[prop] = {
+                    subscription: subscribe(obs.observable, prop), //obs.observable.subscribe(next => this.handleNext(prop, next), this.handleError, this.handleComplete),
+                    firstValue: false
+                };
+            }
+        }
+
+        return nextSubscriptions;
+    }
+
+    function getInnerComponentProps(externalProps: Rxfy<TProps>, stateValues: Partial<TProps>, stateReady: boolean) {
+        const values = mapObject(externalProps, (x, key) => toComponentRxObservable(key, x, options).observe ? stateValues[key] : (x as any));
+
+        const loading = !stateReady;
+        const loadingProps = mapObject(filterObject((options || {}), x => !!(x && x.loading)), x => loading);
+        const props = { ...(loadingProps as {}), ...(values as {}) };
+
+        return props;
+    }
+
+    function getViewProps(externalProps: any, state: State): ViewProps {
+        const timeoutMs = 100;
+        const loadingTime = state.stateDate.valueOf() - state.loadingDate.valueOf();
+
+        return {
+            error: state.error,
+            props: getInnerComponentProps(externalProps, state.values, state.ready),
+            ready: state.ready,
+            loadingTimeout: loadingTime > timeoutMs,
+            Error: Error,
+            Fallback: Fallback,
+            MyComp: Component
+        };
+    }
+
+
+
+    /**Get the initial value for the ready property of the state */
+    function initialReady(props: Rxfy<TProps>): boolean {
+        return enumObject(mapObject(props, (value, key) => toComponentRxObservable(key, value, options).observe)).filter(x => x.value).length > 0;
+    }
+
+
+
     return class ComponentToRx extends React.Component<Rxfy<TProps>, State> {
         constructor(props) {
             super(props);
+            const now = new Date();
             this.state = {
                 error: undefined,
                 values: mapObject(options || {}, x => x && x.initial),
-                firstValue: {}
+                ready: initialReady(props),
+                loadingDate: now,
+                stateDate: now
             };
         }
 
-        private subscriptions: {[K in keyof TProps]?: rx.Subscription | undefined } = {};
-
-        /**Devuelve true si el componente esta listo para mostrar, esto es si ya fue recibido el primer valor de todas las subscripciones */
-        private get ready() {
-            for (const key in this.subscriptions) {
-                if (!this.state.firstValue[key])
-                    return false;
-            }
-            return true;
-        }
-
+        private subscriptions: Subscriptions = {};
         /**Maneja un siguiente valor del observable */
         private handleNext = <K extends keyof TProps>(key: K, value: any) => {
+            const sub = this.subscriptions;
+            const nextSub = { ... (sub as any), [key]: { ...sub[key], firstValue: true } };
+            const ready = isReady(nextSub);
+            this.subscriptions = nextSub;
+
             this.setState((prev) => ({
                 values: { ...(prev.values as {}), [key]: value },
-                firstValue: { ...(prev.firstValue as {}), [key]: true },
+                ready: ready
             }));
         }
 
@@ -124,7 +191,7 @@ export function componentToRx<TProps>(
         }
 
         componentWillMount() {
-            this.processProps({} as any, this.props);
+            this.handleProps({} as any, this.props);
         }
 
         componentWillUnmount() {
@@ -132,63 +199,27 @@ export function componentToRx<TProps>(
             for (const key in this.subscriptions) {
                 const value = this.subscriptions[key];
                 if (value) {
-                    value.unsubscribe();
+                    value.subscription.unsubscribe();
                 }
             }
         }
 
-        private processProps(old: Rxfy<TProps>, next: Rxfy<TProps>) {
-            const diff = shallowDiff(old, next);
-            for (const prop in diff) {
-                const oldValue = old[prop];
-                const nextValue = next[prop];
-                //Remove old subscription
-                const oldSubscription = this.subscriptions[prop];
-                if (oldSubscription) {
-                    oldSubscription.unsubscribe();
-                    this.subscriptions[prop] = undefined;
-                }
+        private handleProps(old: Rxfy<TProps>, next: Rxfy<TProps>) {
+            const nextSub = processProps(old, next, this.subscriptions, (obs, prop) => obs.subscribe(next => this.handleNext(prop, next), this.handleError, this.handleComplete));
+            const ready = isReady(nextSub);
 
-                //Create the new subscription
-                const obs = toComponentRxObservable(prop, nextValue, options);
-                if (obs.observe) {
-                    this.subscriptions[prop] = obs.observable.subscribe(next => this.handleNext(prop, next), this.handleError, this.handleComplete);
-                }
-            }
+            this.subscriptions = nextSub;
+
+            this.setState({ ready: ready });
         }
 
         componentWillReceiveProps(next: Rxfy<TProps>) {
-            this.processProps(this.props, next);
+            this.handleProps(this.props, next);
         }
 
         render() {
-            //Fallback to this.values if current state value is undefined
-            if (this.state.error) {
-                if (Error) {
-                    const c = <Error error={this.state.error} />;
-                    return null as any;
-                }
-                else {
-                    const c = <span style={{ color: "red" }} ><b>Error:  {this.state.error}</b></span>;
-                    return c;
-                }
-            }
-
-            const rxValues = this.state.values;
-            const externalProps = this.props as Rxfy<TProps>;
-            const values = mapObject(externalProps, (x, key) => toComponentRxObservable(key, x, options).observe ? rxValues[key] : (x as any));
-
-            const ready = this.ready;
-            const loading = !ready;
-            const loadingProps = mapObject(filterObject((options || {}), x => !!(x && x.loading)), x => loading);
-            const props = { ...(loadingProps as {}), ...(values as {}) };
-
-            //Render the inner or the fallback component
-            const ComponentToRender = (ready || !Fallback) ? MyComp :
-                isJsxElement(Fallback) ? (() => Fallback) :
-                    Fallback;
-
-            return <ComponentToRender {...props} />;
+            const props = getViewProps(this.props, this.state);
+            return <Component2RxView {...props} />
         }
     }
 }
