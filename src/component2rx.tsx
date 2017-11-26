@@ -72,7 +72,7 @@ export function componentToRx<TProps>(
     Error?: ReactComponent<{ error: any }>,
     options?: ComponentToRxOptions<TProps>,
     loadingTimeout = 500
-    ): React.ComponentClass<Rxfy<TProps>> {
+): React.ComponentClass<Rxfy<TProps>> {
 
     const MyComp = Component;
 
@@ -168,6 +168,7 @@ export function componentToRx<TProps>(
         }
 
         private subscriptions: Subscriptions = {};
+        private _isMounted: boolean = false;
         /**Maneja un siguiente valor del observable */
         private handleNext = <K extends keyof TProps>(key: K, value: any) => {
             const sub = this.subscriptions;
@@ -190,7 +191,11 @@ export function componentToRx<TProps>(
 
         /**Maneja un on complete del observable */
         private handleComplete = () => {
+            //no-op
+        }
 
+        componentDidMount() {
+            this._isMounted = true;
         }
 
         componentWillMount() {
@@ -198,6 +203,7 @@ export function componentToRx<TProps>(
         }
 
         componentWillUnmount() {
+            this._isMounted = false;
             //Quitar todas las subscripciones
             for (const key in this.subscriptions) {
                 const value = this.subscriptions[key];
@@ -214,11 +220,15 @@ export function componentToRx<TProps>(
             this.subscriptions = nextSub;
 
             const now = new Date();
-            this.setState(oldState => ({ ready: ready, loadingDate: (!ready && ready != oldState.ready) ? now : oldState.loadingDate , stateDate: now }));
+            this.setState(oldState => ({ ready: ready, loadingDate: (!ready && ready != oldState.ready) ? now : oldState.loadingDate, stateDate: now }));
             if (!ready) {
                 setTimeout(() => {
                     const now = new Date();
-                    this.setState({ stateDate: now });
+                    if (this._isMounted){
+                        //Refrescamos el componente en caso de que ya se ha vencido el loadingTimeout
+                        this.setState({ stateDate: now });
+                    }
+
                 }, loadingTimeout + 100);
             }
         }
