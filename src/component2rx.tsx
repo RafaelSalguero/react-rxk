@@ -70,7 +70,9 @@ export function componentToRx<TProps>(
     Component: ReactComponent<TProps>,
     Fallback?: ReactComponent<any> | JSX.Element,
     Error?: ReactComponent<{ error: any }>,
-    options?: ComponentToRxOptions<TProps>): React.ComponentClass<Rxfy<TProps>> {
+    options?: ComponentToRxOptions<TProps>,
+    loadingTimeout = 500
+    ): React.ComponentClass<Rxfy<TProps>> {
 
     const MyComp = Component;
 
@@ -129,15 +131,15 @@ export function componentToRx<TProps>(
         return props;
     }
 
+
     function getViewProps(externalProps: any, state: State): ViewProps {
-        const timeoutMs = 100;
         const loadingTime = state.stateDate.valueOf() - state.loadingDate.valueOf();
 
         return {
             error: state.error,
             props: getInnerComponentProps(externalProps, state.values, state.ready),
             ready: state.ready,
-            loadingTimeout: loadingTime > timeoutMs,
+            loadingTimeout: loadingTime > loadingTimeout,
             Error: Error,
             Fallback: Fallback,
             MyComp: Component
@@ -150,7 +152,6 @@ export function componentToRx<TProps>(
     function initialReady(props: Rxfy<TProps>): boolean {
         return enumObject(mapObject(props, (value, key) => toComponentRxObservable(key, value, options).observe)).filter(x => x.value).length > 0;
     }
-
 
 
     return class ComponentToRx extends React.Component<Rxfy<TProps>, State> {
@@ -173,16 +174,18 @@ export function componentToRx<TProps>(
             const nextSub = { ... (sub as any), [key]: { ...sub[key], firstValue: true } };
             const ready = isReady(nextSub);
             this.subscriptions = nextSub;
-
+            const now = new Date();
             this.setState((prev) => ({
                 values: { ...(prev.values as {}), [key]: value },
-                ready: ready
+                ready: ready,
+                stateDate: now
             }));
         }
 
         /**Maneja un error del observable */
         private handleError = (error: any) => {
-            this.setState((prev) => ({ error: error }));
+            const now = new Date();
+            this.setState((prev) => ({ error: error, stateDate: now }));
         }
 
         /**Maneja un on complete del observable */
@@ -210,7 +213,14 @@ export function componentToRx<TProps>(
 
             this.subscriptions = nextSub;
 
-            this.setState({ ready: ready });
+            const now = new Date();
+            this.setState(oldState => ({ ready: ready, loadingDate: (!ready && ready != oldState.ready) ? now : oldState.loadingDate , stateDate: now }));
+            if (!ready) {
+                setTimeout(() => {
+                    const now = new Date();
+                    this.setState({ stateDate: now });
+                }, loadingTimeout + 100);
+            }
         }
 
         componentWillReceiveProps(next: Rxfy<TProps>) {

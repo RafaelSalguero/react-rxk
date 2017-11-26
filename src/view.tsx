@@ -20,28 +20,42 @@ export interface ViewProps {
     MyComp: ReactComponent<any>;
 }
 
-
+/**Componente que controla la lógica del timeout de recarga, que implica que el componente no se va a dibujar por primera vez ni a refrescar cuando se empiece a cargar, hasta que
+ * loadingTimeOut == true
+ */
 export class Component2RxView extends React.PureComponent<ViewProps> {
-    render() {
-        const { Fallback, Error, MyComp } = this.props;
+    oldRender: JSX.Element | null = null;
 
-        //Fallback to this.values if current state value is undefined
-        if (this.props.error) {
-            if (Error) {
-                const c = <Error error={this.props.error} />;
-                return null as any;
+    render() {
+        const disableLoadingTimeout = false;
+        const showOldRender = this.props.loadingTimeout == false && !this.props.ready;
+        if (!disableLoadingTimeout && showOldRender) {
+            return this.oldRender;
+        }
+        else {
+            const { Fallback, Error, MyComp } = this.props;
+
+            //Fallback to this.values if current state value is undefined
+            if (this.props.error) {
+                if (Error) {
+                    const c = <Error error={this.props.error} />;
+                    return null as any;
+                }
+                else {
+                    const c = <span style={{ color: "red" }} ><b>Error:  {"" + this.props.error}</b></span>;
+                    return c;
+                }
             }
-            else {
-                const c = <span style={{ color: "red" }} ><b>Error:  {"" + this.props.error}</b></span>;
-                return c;
-            }
+
+            //Render the inner or the fallback component
+            const ComponentToRender = (this.props.ready || !Fallback) ? this.props.MyComp :
+                isJsxElement(Fallback) ? (() => Fallback) :
+                    Fallback;
+
+            const nextRender = <ComponentToRender {...this.props.props} />;
+            this.oldRender = nextRender;
+            return nextRender;
         }
 
-        //Render the inner or the fallback component
-        const ComponentToRender = (this.props.ready || !Fallback) ? this.props.MyComp :
-            isJsxElement(Fallback) ? (() => Fallback) :
-                Fallback;
-
-        return <ComponentToRender {...this.props.props} />;
     }
 }

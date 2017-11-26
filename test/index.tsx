@@ -119,6 +119,7 @@ const LoadingComponentRx = componentToRx(LoadingComponent, undefined, undefined,
 
 class PromLoadingComponent extends React.PureComponent<{ a: number, b: number, loading?: boolean }> {
     render() {
+    console.log("render");
         const noConsistente = this.props.a != this.props.b && !this.props.loading;
         if(noConsistente) {
             console.log("ERROR no consistente");
@@ -164,7 +165,7 @@ export class App extends React.Component<{}, { prom: Promise<number>, promValue:
             this.error.error("Este es un error");
         }, 3000);
 
-        rx.Observable.timer(0, 1500).subscribe(x => this.setState({ prom: delay(0).then(y => x), promValue: x }));
+        rx.Observable.timer(0, 2000).subscribe(x => this.setState({ prom: delay(400).then(y => x), promValue: x }));
     }
     render() {
         return (
