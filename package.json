@@ -1,6 +1,6 @@
 {
   "name": "react-rxk",
-  "version": "2.0.12",
+  "version": "2.0.13",
   "description": "Higher order component to make any component accept RxJS observables as props",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
