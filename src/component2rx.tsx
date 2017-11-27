@@ -119,14 +119,17 @@ export function componentToRx<TProps>(
     }
 
     /**Une los valores del state con las subscripciones pendientes, esta función es pura */
-    function mergeStateValuesWithPendingSubscriptions(values: StateValues<TProps>, pendingSubs: PendingSubscription[]) {
+    function mergeStateValuesWithPendingSubscriptions(values: StateValues<TProps>, pendingSubs: PendingSubscription[], version: number) {
         let ret: StateValues<TProps> = { ... (values as any) };
         for (const sub of pendingSubs) {
             const prop = sub.prop;
             const propOptions = options && options[prop];
             const initial = propOptions && propOptions.initial;
-            ret[prop] = ret[prop] || { value: initial, firstValue: false };
-            ret[prop]!.firstValue = false;
+            let current = ret[prop] || { value: initial, firstValue: false, version: 0 };
+            if(version > current.version) {
+                current.firstValue = false;
+            }
+            ret[prop] = current;
         }
         return ret;
     }
@@ -188,7 +191,7 @@ export function componentToRx<TProps>(
 
     /**Obtiene los valores initiales del state */
     function getInitialValues(props: Rxfy<TProps>) {
-        return mergeStateValuesWithPendingSubscriptions({}, processProps({}, props, {}));
+        return mergeStateValuesWithPendingSubscriptions({}, processProps({}, props, {}), 1);
     }
 
     return class ComponentToRx extends React.Component<Rxfy<TProps>, State<TProps>> {
@@ -206,13 +209,17 @@ export function componentToRx<TProps>(
         private subscriptions: Subscriptions = {};
         private _isMounted: boolean = false;
         /**Maneja un siguiente valor del observable */
-        private handleNext = <K extends keyof TProps>(key: K, value: any) => {
+        private handleNext = <K extends keyof TProps>(key: K, value: any, version: number) => {
             const sub = this.subscriptions;
             const nextSub = { ... (sub as any), [key]: { ...sub[key], firstValue: true } };
             this.subscriptions = nextSub;
             const now = new Date();
             this.setState((prev) => ({
-                values: { ...(prev.values as {}), [key]: ({ value: value, firstValue: true } as StateValue) },
+                values: mapObject(prev.values,
+                    (prevStateValue, key) => version > prevStateValue!.version ?
+                        ({value: value, firstValue: true, version: version } as StateValue) : 
+                        prevStateValue
+                ),
                 stateDate: now
             }));
         }
@@ -248,22 +255,28 @@ export function componentToRx<TProps>(
         }
 
         private currentPropsVersion: number;
+        private propsVersion: number = 1;
         private handleProps(old: Rxfy<TProps>, next: Rxfy<TProps>) {
+            this.propsVersion+= 2;
+            const loadingStateVersion = this.propsVersion;
+            const onNextVersion = loadingStateVersion + 1;
             //Obtener las subscripciones pendientes
             const pendingSubs = processProps(old, next, this.subscriptions);
             const newSubscriptions = pendingSubs.length > 0;
+
+            //Nos subscribimos 
+            const nextSub = applyPendingSubscriptions(this.subscriptions, pendingSubs, (obs, prop) => obs.subscribe(next => this.handleNext(prop, next, onNextVersion), this.handleError, this.handleComplete));
+            this.subscriptions = nextSub;
 
             //Actualizar el state a uno que esta cargando, note que visualmente este cambio no se va a reflejar gracias al cache del View:
             const now = new Date();
             this.setState(oldState => ({
                 stateDate: now,
                 loadingDate: newSubscriptions ? now : oldState.loadingDate,  //Solamente establecemos la fecha de carga si hubo nuevas subscripciones
-                values: mergeStateValuesWithPendingSubscriptions(oldState.values, pendingSubs)
+                values: mergeStateValuesWithPendingSubscriptions(oldState.values, pendingSubs, loadingStateVersion)
             }));
 
-            //Nos subscribimos DESPUES de haber establecido el ready
-            const nextSub = applyPendingSubscriptions(this.subscriptions, pendingSubs, (obs, prop) => obs.subscribe(next => this.handleNext(prop, next), this.handleError, this.handleComplete));
-            this.subscriptions = nextSub;
+
 
             if (newSubscriptions) {
                 //Despues de un pequeño tiempo despues del loadingTimeout forzamos un refrescado con un nuevo state, esto para que el view considere dejar de mostrar el cache y comenzar a mostrar el spinner en

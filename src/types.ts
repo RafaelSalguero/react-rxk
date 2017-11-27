@@ -10,6 +10,7 @@ export type Rxfy<T> = {
 export interface StateValue {
     value: any;
     firstValue: boolean;
+    version: number;
 }
 export type StateValues<TProps> = {[K in keyof TProps]?: StateValue};
 
