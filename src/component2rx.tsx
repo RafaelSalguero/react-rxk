@@ -95,12 +95,33 @@ export function componentToRx<TProps>(
         return true;
     }
 
-    function processProps(oldProps: Rxfy<TProps>, nextProps: Rxfy<TProps>, oldSubscriptions: Subscriptions, subscribe: (observable: rx.Observable<any>, prop: keyof TProps) => rx.Subscription): Subscriptions {
+    interface PendingSubscription {
+        prop: keyof TProps;
+        observable: rx.Observable<any>
+    }
+
+    /**Función pura que obtiene las subscripciones pendientes dado un cambio en el props */
+    function processProps(oldProps: Rxfy<TProps>, nextProps: Rxfy<TProps>, oldSubscriptions: Subscriptions): PendingSubscription[] {
         const diff = shallowDiff(oldProps, nextProps);
-        let nextSubscriptions = { ...(oldSubscriptions as any) };
+        let ret: PendingSubscription[] = [];
         for (const prop in diff) {
-            const oldValue = oldProps[prop];
             const nextValue = nextProps[prop];
+
+            //Create the new subscription
+            const obs = toComponentRxObservable(prop, nextValue, options);
+            if (obs.observe) {
+                ret.push({ prop: prop, observable: obs.observable });
+
+            }
+        }
+        return ret;
+    }
+
+    /**Esta función no es pura y aplica las subscripciones pendiente, desuscribiendose de las anteriores, devuelve un nuevo objeto de subscripciones */
+    function applyPendingSubscriptions(oldSubscriptions: Subscriptions, pending: PendingSubscription[], subscribe: (observable: rx.Observable<any>, prop: keyof TProps) => rx.Subscription) {
+        let nextSubscriptions = { ...(oldSubscriptions as any) };
+        for (const sub of pending) {
+            const prop = sub.prop;
             //Remove old subscription
             const oldSubscription = oldSubscriptions[prop];
             if (oldSubscription) {
@@ -108,16 +129,11 @@ export function componentToRx<TProps>(
                 nextSubscriptions[prop] = undefined;
             }
 
-            //Create the new subscription
-            const obs = toComponentRxObservable(prop, nextValue, options);
-            if (obs.observe) {
-                nextSubscriptions[prop] = {
-                    subscription: subscribe(obs.observable, prop), //obs.observable.subscribe(next => this.handleNext(prop, next), this.handleError, this.handleComplete),
-                    firstValue: false
-                };
-            }
+            nextSubscriptions[prop] = {
+                subscription: subscribe(sub.observable, prop),
+                firstValue: false
+            };
         }
-
         return nextSubscriptions;
     }
 
@@ -213,18 +229,26 @@ export function componentToRx<TProps>(
             }
         }
 
+        private currentPropsVersion: number;
         private handleProps(old: Rxfy<TProps>, next: Rxfy<TProps>) {
-            const nextSub = processProps(old, next, this.subscriptions, (obs, prop) => obs.subscribe(next => this.handleNext(prop, next), this.handleError, this.handleComplete));
-            const ready = isReady(nextSub);
+            //Obtener las subscripciones pendientes
+            const pendingSubs = processProps(old, next, this.subscriptions);
+            const ready = pendingSubs.length == 0 && isReady(this.subscriptions);
 
-            this.subscriptions = nextSub;
-
+            //Actualizar el state a uno que esta cargando, note que visualmente este cambio no se va a reflejar gracias al cache del View:
             const now = new Date();
             this.setState(oldState => ({ ready: ready, loadingDate: (!ready && ready != oldState.ready) ? now : oldState.loadingDate, stateDate: now }));
+
+            //Nos subscribimos DESPUES de haber establecido el ready, ya que si no puede ser que sobreescribamos el state de las subscripciones con el de cargando
+            const nextSub = applyPendingSubscriptions(this.subscriptions, pendingSubs, (obs, prop) => obs.subscribe(next => this.handleNext(prop, next), this.handleError, this.handleComplete));
+            this.subscriptions = nextSub;
+
             if (!ready) {
+                //Despues de un pequeño tiempo despues del loadingTimeout forzamos un refrescado con un nuevo state, esto para que el view considere dejar de mostrar el cache y comenzar a mostrar el spinner en
+                //caso de que aún este cargando
                 setTimeout(() => {
                     const now = new Date();
-                    if (this._isMounted){
+                    if (this._isMounted) {
                         //Refrescamos el componente en caso de que ya se ha vencido el loadingTimeout
                         this.setState({ stateDate: now });
                     }

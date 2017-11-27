@@ -1,4 +1,5 @@
 #archivos comprimidos
 *.7z
 *.zip
-
+*.ts
+*.tsx

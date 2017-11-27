@@ -119,9 +119,9 @@ const LoadingComponentRx = componentToRx(LoadingComponent, undefined, undefined,
 
 class PromLoadingComponent extends React.PureComponent<{ a: number, b: number, loading?: boolean }> {
     render() {
-    console.log("render");
+        console.log("render");
         const noConsistente = this.props.a != this.props.b && !this.props.loading;
-        if(noConsistente) {
+        if (noConsistente) {
             console.log("ERROR no consistente");
         }
         return (
@@ -141,6 +141,39 @@ class PromLoadingComponent extends React.PureComponent<{ a: number, b: number, l
 }
 
 const PromLoadingCompRx = componentToRx(PromLoadingComponent, undefined, undefined, { loading: { loading: true } });
+
+const promObs1 = rx.Observable.fromPromise(delay(1000).then(x => "Promesa 1"));
+const promObs2 = promObs1.map(x => "Map: " + x);
+
+class SimpleText extends React.PureComponent<{ text: string }> {
+    render() {
+        return (
+            <div>
+                <span>
+                    {this.props.text}
+                </span>
+                <br />
+            </div>
+        );
+    }
+}
+const SimpleTextRx = componentToRx(SimpleText, <span>cargando...</span>, undefined);
+
+class NeastedComponent extends React.PureComponent<{ text: string }> {
+    render() {
+        return (
+            <div>
+                Value: {this.props.text}
+                <br />
+                Neasted:
+                <br />
+                <SimpleTextRx text={promObs1} />
+            </div>
+        );
+    }
+}
+
+const NeastedComponentRx = componentToRx(NeastedComponent, <span>cargando neasted...</span>);
 
 export class App extends React.Component<{}, { prom: Promise<number>, promValue: number }> {
     private timerA = rx.Observable.timer(0, 1000);
@@ -168,10 +201,12 @@ export class App extends React.Component<{}, { prom: Promise<number>, promValue:
         //rx.Observable.timer(0, 2000).subscribe(x => this.setState({ prom: delay(400).then(y => x), promValue: x }));
     }
     render() {
+        const test = 0;
         return (
             <div>
+                <NeastedComponentRx text={promObs2} />
                 {/* <PromLoadingCompRx a={this.state.prom} b={this.state.promValue} /> */}
-                                
+
                 <MyCompRx a={this.timerA} b={this.timerB} c={33} />
                 <TextoRx texto={this.cargando} />
                 <TextoRx texto={this.inmediato} />
