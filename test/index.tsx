@@ -205,9 +205,9 @@ export class App extends React.Component<{}, { prom: Promise<number>, promValue:
         return (
             <div>
                 {/* <PromLoadingCompRx a={this.state.prom} b={this.state.promValue} /> */}
-                {/* <NeastedComponentRx text={promObs2} /> */}
+                <NeastedComponentRx text={promObs2} />
 
-                <MyCompRx a={this.timerA} b={this.timerB} c={33} />
+                {/* <MyCompRx a={this.timerA} b={this.timerB} c={33} />
                 <TextoRx texto={this.cargando} />
                 <TextoRx texto={this.inmediato} />
                 <TextoRx texto={this.error} />
@@ -229,7 +229,7 @@ export class App extends React.Component<{}, { prom: Promise<number>, promValue:
 
                 <LoadingComponentRx texto={delay(4000).then(x => "Se terminó la promesa")} />
                 <LoadingComponentRx texto={delay(4000).then(x => "Siempre cargando")} loading={true} />
-                <LoadingComponentRx texto={delay(4000).then(x => "Nunca cargando")} loading={false} />
+                <LoadingComponentRx texto={delay(4000).then(x => "Nunca cargando")} loading={false} /> */}
             </div>
         )
     }

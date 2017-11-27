@@ -216,7 +216,9 @@ export function componentToRx<TProps>(
             const now = new Date();
             this.setState((prev) => ({
                 values: mapObject(prev.values,
-                    (prevStateValue, key) => version > prevStateValue!.version ?
+                    //NOTA: El control de versiones en el onNext verifica si la version es mayor o igual, no si es mayor a diferencia de la puesta del loading, esto porque el mismo observable
+                    //con varios valores va a generar valores para la misma versión
+                    (prevStateValue, key) => version >= prevStateValue!.version ?
                         ({value: value, firstValue: true, version: version } as StateValue) : 
                         prevStateValue
                 ),
