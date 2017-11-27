@@ -2,7 +2,7 @@ import { rxToReact } from "./rxToReact";
 import * as rx from "rxjs";
 import * as React from "react";
 import { shallowDiff, mapObject, filterObject, enumObject } from "keautils";
-import { Rxfy, State, ReactComponent } from "./types";
+import { Rxfy, State, ReactComponent, StateValue, StateValues } from "./types";
 import { ViewProps, Component2RxView } from "./view";
 
 
@@ -87,7 +87,7 @@ export function componentToRx<TProps>(
     type Subscriptions = {[K in keyof TProps]?: Subscription};
 
     /**Return true if all subscriptions have its firstValue == true */
-    function isReady(x: Subscriptions): boolean {
+    function isReady(x: StateValues<TProps>): boolean {
         for (const key in x) {
             if (!x[key]!.firstValue)
                 return false;
@@ -100,8 +100,9 @@ export function componentToRx<TProps>(
         observable: rx.Observable<any>
     }
 
-    /**Función pura que obtiene las subscripciones pendientes dado un cambio en el props */
-    function processProps(oldProps: Rxfy<TProps>, nextProps: Rxfy<TProps>, oldSubscriptions: Subscriptions): PendingSubscription[] {
+
+    /**Función pura que obtiene las subscripciones pendientes dado un cambio en el props. Esta función es pura */
+    function processProps(oldProps: Partial<Rxfy<TProps>>, nextProps: Rxfy<TProps>, oldSubscriptions: Subscriptions): PendingSubscription[] {
         const diff = shallowDiff(oldProps, nextProps);
         let ret: PendingSubscription[] = [];
         for (const prop in diff) {
@@ -113,6 +114,19 @@ export function componentToRx<TProps>(
                 ret.push({ prop: prop, observable: obs.observable });
 
             }
+        }
+        return ret;
+    }
+
+    /**Une los valores del state con las subscripciones pendientes, esta función es pura */
+    function mergeStateValuesWithPendingSubscriptions(values: StateValues<TProps>, pendingSubs: PendingSubscription[]) {
+        let ret: StateValues<TProps> = { ... (values as any) };
+        for (const sub of pendingSubs) {
+            const prop = sub.prop;
+            const propOptions = options && options[prop];
+            const initial = propOptions && propOptions.initial;
+            ret[prop] = ret[prop] || { value: initial, firstValue: false };
+            ret[prop]!.firstValue = false;
         }
         return ret;
     }
@@ -137,8 +151,12 @@ export function componentToRx<TProps>(
         return nextSubscriptions;
     }
 
-    function getInnerComponentProps(externalProps: Rxfy<TProps>, stateValues: Partial<TProps>, stateReady: boolean) {
-        const values = mapObject(externalProps, (x, key) => toComponentRxObservable(key, x, options).observe ? stateValues[key] : (x as any));
+    /**Obtiene los props que se le van a pasar al componente interno */
+    function getInnerComponentProps(externalProps: Rxfy<TProps>, stateValues: StateValues<TProps>) {
+        const stateReady = isReady(stateValues);
+        const stateMappedValues = mapObject(stateValues, x => x!.value);
+
+        const values = mapObject(externalProps, (x, key) => toComponentRxObservable(key, x, options).observe ? stateMappedValues[key] : (x as any));
 
         const loading = !stateReady;
         const loadingProps = mapObject(filterObject((options || {}), x => !!(x && x.loading)), x => loading);
@@ -147,14 +165,14 @@ export function componentToRx<TProps>(
         return props;
     }
 
-
-    function getViewProps(externalProps: any, state: State): ViewProps {
+    /**Obtiene los props que se le van a pasar al view */
+    function getViewProps(externalProps: any, state: State<TProps>): ViewProps {
         const loadingTime = state.stateDate.valueOf() - state.loadingDate.valueOf();
-
+        const ready = isReady(state.values);
         return {
             error: state.error,
-            props: getInnerComponentProps(externalProps, state.values, state.ready),
-            ready: state.ready,
+            props: getInnerComponentProps(externalProps, state.values),
+            ready: isReady(state.values),
             loadingTimeout: loadingTime > loadingTimeout,
             Error: Error,
             Fallback: Fallback,
@@ -162,22 +180,24 @@ export function componentToRx<TProps>(
         };
     }
 
-
-
     /**Get the initial value for the ready property of the state */
     function initialReady(props: Rxfy<TProps>): boolean {
         return enumObject(mapObject(props, (value, key) => toComponentRxObservable(key, value, options).observe)).filter(x => x.value).length > 0;
     }
 
 
-    return class ComponentToRx extends React.Component<Rxfy<TProps>, State> {
+    /**Obtiene los valores initiales del state */
+    function getInitialValues(props: Rxfy<TProps>) {
+        return mergeStateValuesWithPendingSubscriptions({}, processProps({}, props, {}));
+    }
+
+    return class ComponentToRx extends React.Component<Rxfy<TProps>, State<TProps>> {
         constructor(props) {
             super(props);
             const now = new Date();
             this.state = {
                 error: undefined,
-                values: mapObject(options || {}, x => x && x.initial),
-                ready: initialReady(props),
+                values: getInitialValues(props),
                 loadingDate: now,
                 stateDate: now
             };
@@ -189,12 +209,10 @@ export function componentToRx<TProps>(
         private handleNext = <K extends keyof TProps>(key: K, value: any) => {
             const sub = this.subscriptions;
             const nextSub = { ... (sub as any), [key]: { ...sub[key], firstValue: true } };
-            const ready = isReady(nextSub);
             this.subscriptions = nextSub;
             const now = new Date();
             this.setState((prev) => ({
-                values: { ...(prev.values as {}), [key]: value },
-                ready: ready,
+                values: { ...(prev.values as {}), [key]: ({ value: value, firstValue: true } as StateValue) },
                 stateDate: now
             }));
         }
@@ -233,17 +251,21 @@ export function componentToRx<TProps>(
         private handleProps(old: Rxfy<TProps>, next: Rxfy<TProps>) {
             //Obtener las subscripciones pendientes
             const pendingSubs = processProps(old, next, this.subscriptions);
-            const ready = pendingSubs.length == 0 && isReady(this.subscriptions);
+            const newSubscriptions = pendingSubs.length > 0;
 
             //Actualizar el state a uno que esta cargando, note que visualmente este cambio no se va a reflejar gracias al cache del View:
             const now = new Date();
-            this.setState(oldState => ({ ready: ready, loadingDate: (!ready && ready != oldState.ready) ? now : oldState.loadingDate, stateDate: now }));
+            this.setState(oldState => ({
+                stateDate: now,
+                loadingDate: newSubscriptions ? now : oldState.loadingDate,  //Solamente establecemos la fecha de carga si hubo nuevas subscripciones
+                values: mergeStateValuesWithPendingSubscriptions(oldState.values, pendingSubs)
+            }));
 
-            //Nos subscribimos DESPUES de haber establecido el ready, ya que si no puede ser que sobreescribamos el state de las subscripciones con el de cargando
+            //Nos subscribimos DESPUES de haber establecido el ready
             const nextSub = applyPendingSubscriptions(this.subscriptions, pendingSubs, (obs, prop) => obs.subscribe(next => this.handleNext(prop, next), this.handleError, this.handleComplete));
             this.subscriptions = nextSub;
 
-            if (!ready) {
+            if (newSubscriptions) {
                 //Despues de un pequeño tiempo despues del loadingTimeout forzamos un refrescado con un nuevo state, esto para que el view considere dejar de mostrar el cache y comenzar a mostrar el spinner en
                 //caso de que aún este cargando
                 setTimeout(() => {
@@ -263,7 +285,8 @@ export function componentToRx<TProps>(
 
         render() {
             const props = getViewProps(this.props, this.state);
-            return <Component2RxView {...props} />
+            return <Component2RxView {...props
+            } />
         }
     }
 }

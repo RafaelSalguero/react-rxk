@@ -198,14 +198,14 @@ export class App extends React.Component<{}, { prom: Promise<number>, promValue:
             this.error.error("Este es un error");
         }, 3000);
 
-        //rx.Observable.timer(0, 2000).subscribe(x => this.setState({ prom: delay(400).then(y => x), promValue: x }));
+        // rx.Observable.timer(0, 2000).subscribe(x => this.setState({ prom: delay(400).then(y => x), promValue: x }));
     }
     render() {
         const test = 0;
         return (
             <div>
-                <NeastedComponentRx text={promObs2} />
                 {/* <PromLoadingCompRx a={this.state.prom} b={this.state.promValue} /> */}
+                <NeastedComponentRx text={promObs2} />
 
                 <MyCompRx a={this.timerA} b={this.timerB} c={33} />
                 <TextoRx texto={this.cargando} />
