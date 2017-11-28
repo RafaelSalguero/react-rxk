@@ -71,7 +71,7 @@ export function componentToRx<TProps>(
     Fallback?: ReactComponent<any> | JSX.Element,
     Error?: ReactComponent<{ error: any }>,
     options?: ComponentToRxOptions<TProps>,
-    loadingTimeout = 500
+    loadingTimeout = 100
 ): React.ComponentClass<Rxfy<TProps>> {
 
     const MyComp = Component;
@@ -290,7 +290,7 @@ export function componentToRx<TProps>(
                         this.setState({ stateDate: now });
                     }
 
-                }, loadingTimeout + 100);
+                }, loadingTimeout + 20);
             }
         }
 
