@@ -218,7 +218,7 @@ export function componentToRx<TProps>(
                 values: mapObject(prev.values,
                     //NOTA: El control de versiones en el onNext verifica si la version es mayor o igual, no si es mayor a diferencia de la puesta del loading, esto porque el mismo observable
                     //con varios valores va a generar valores para la misma versión
-                    (prevStateValue, key) => version >= prevStateValue!.version ?
+                    (prevStateValue, stateKey) => version >= prevStateValue!.version && (stateKey as any) == key ?
                         ({value: value, firstValue: true, version: version } as StateValue) : 
                         prevStateValue
                 ),
