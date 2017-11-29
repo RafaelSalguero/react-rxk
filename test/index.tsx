@@ -117,7 +117,7 @@ const LoadingComponentRx = componentToRx(LoadingComponent, undefined, undefined,
 });
 
 
-class PromLoadingComponent extends React.PureComponent<{ a: number, b: number, loading?: boolean }> {
+class PromLoadingComponent extends React.PureComponent<{ a: number, b: number, loading?: boolean, onChange: (x: number) => void }> {
     render() {
         console.log("render");
         const noConsistente = this.props.a != this.props.b && !this.props.loading;
@@ -130,6 +130,7 @@ class PromLoadingComponent extends React.PureComponent<{ a: number, b: number, l
                 <br />
                 <span>b: {this.props.b}</span>
                 <br />
+                <input value={this.props.b} onChange={ev => this.props.onChange(Number.parseInt(ev.currentTarget.value))} />
                 <span>cargando: {"" + this.props.loading}</span>
 
                 <br />
@@ -173,7 +174,7 @@ class NeastedComponent extends React.PureComponent<{ text: string }> {
     }
 }
 
-const NeastedComponentRx = componentToRx(NeastedComponent, <span>cargando neasted...</span>);
+const NeastedComponentRx = componentToRx(NeastedComponent, <span>cargando neasted...</span>, undefined, undefined, 500);
 
 export class App extends React.Component<{}, { prom: Promise<number>, promValue: number }> {
     private timerA = rx.Observable.timer(0, 1000);
@@ -198,13 +199,19 @@ export class App extends React.Component<{}, { prom: Promise<number>, promValue:
             this.error.error("Este es un error");
         }, 3000);
 
-        rx.Observable.timer(0, 2000).subscribe(x => this.setState({ prom: delay(5).then(y => x), promValue: x }));
+        //rx.Observable.timer(0, 2000).subscribe(x => this.setState({ prom: delay(500).then(y => x), promValue: x }));
     }
     render() {
         const test = 0;
         return (
             <div>
-                <PromLoadingCompRx a={this.state.prom} b={this.state.promValue} />
+                <PromLoadingCompRx a={this.state.prom} b={this.state.promValue} onChange={x => {
+                    this.setState({
+                        promValue: x,
+                        prom: delay(500).then(() => x)
+                    });
+                }} />
+
                 {/* <NeastedComponentRx text={promObs2} /> */}
 
                 {/* <MyCompRx a={this.timerA} b={this.timerB} c={33} />

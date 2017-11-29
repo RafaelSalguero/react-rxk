@@ -18,8 +18,8 @@ export interface ViewProps {
     Fallback?: ReactComponent<any> | JSX.Element;
     Error?: ReactComponent<any>;
     MyComp: ReactComponent<any>;
+    disableLoadingTimeout?: boolean;
 }
-const disableLoadingTimeout = false;
 
 /**Componente que controla la lógica del timeout de recarga, que implica que el componente no se va a dibujar por primera vez ni a refrescar cuando se empiece a cargar, hasta que
  * loadingTimeOut == true
@@ -28,11 +28,12 @@ export class Component2RxView extends React.Component<ViewProps> {
     oldRender: JSX.Element | null = null;
     oldRenderProps: ViewProps | undefined;
     shouldComponentUpdate(nextProps: ViewProps, nextState) {
-        if(this.oldRenderProps == null) return true;
+        if (this.oldRenderProps == null) return true;
 
+        //TODO: Debido a esta linea se atrasa el render 
         const showOldRender = nextProps.loadingTimeout == false && !nextProps.ready;
         //Si se va a dibujar el componente anterior se ignore
-        if (!disableLoadingTimeout && showOldRender) {
+        if (!this.props.disableLoadingTimeout && showOldRender) {
             return false;
         }
         const oldProps = this.oldRenderProps;
@@ -43,13 +44,13 @@ export class Component2RxView extends React.Component<ViewProps> {
             return false;
         }
 
-        return true; 
+        return true;
     }
 
 
     render() {
         const showOldRender = this.props.loadingTimeout == false && !this.props.ready;
-        if (!disableLoadingTimeout && showOldRender) {
+        if (!this.props.disableLoadingTimeout && showOldRender) {
             return this.oldRender;
         }
         else {
