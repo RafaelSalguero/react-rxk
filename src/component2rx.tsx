@@ -71,7 +71,7 @@ export function componentToRx<TProps>(
     Fallback?: ReactComponent<any> | JSX.Element,
     Error?: ReactComponent<{ error: any }>,
     options?: ComponentToRxOptions<TProps>,
-    loadingTimeout = 0
+    loadingTimeout = 300
 ): React.ComponentClass<Rxfy<TProps>> {
 
     const MyComp = Component;
@@ -300,8 +300,7 @@ export function componentToRx<TProps>(
 
         render() {
             const props = getViewProps(this.props, this.state);
-            return <Component2RxView {...props
-            } />
+            return <Component2RxView {...props} />
         }
     }
 }
