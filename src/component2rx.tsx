@@ -290,7 +290,7 @@ export function componentToRx<TProps>(
                         this.setState({ stateDate: now });
                     }
 
-                }, loadingTimeout);
+                }, loadingTimeout + 50);
             }
         }
 
