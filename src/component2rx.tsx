@@ -194,7 +194,7 @@ export function componentToRx<TProps>(
         return mergeStateValuesWithPendingSubscriptions({}, processProps({}, props, {}), 1);
     }
 
-    return class ComponentToRx extends React.Component<Rxfy<TProps>, State<TProps>> {
+    const retClass : React.ComponentClass<Rxfy<TProps>> = class ComponentToRx extends React.Component<Rxfy<TProps>, State<TProps>> {
         constructor(props) {
             super(props);
             const now = new Date();
@@ -222,7 +222,8 @@ export function componentToRx<TProps>(
                         ({value: value, firstValue: true, version: version } as StateValue) : 
                         prevStateValue
                 ),
-                stateDate: now
+                stateDate: now,
+                error: undefined
             }));
         }
 
@@ -303,4 +304,9 @@ export function componentToRx<TProps>(
             return <Component2RxView {...props} />
         }
     }
+
+    const innerName = (Component as any).displayName || Component.name || "Component";
+    retClass.displayName = `MapState(${innerName})`;
+
+    return retClass;
 }

@@ -21,8 +21,8 @@ export interface ViewProps {
     disableLoadingTimeout?: boolean;
 }
 
-/**Componente que controla la lógica del timeout de recarga, que implica que el componente no se va a dibujar por primera vez ni a refrescar cuando se empiece a cargar, hasta que
- * loadingTimeOut == true
+/**Componente que controla la lógica del timeout de recarga, que implica que el componente no se va a dibujar por primera vez ni a 
+ * refrescar cuando se empiece a cargar, hasta que loadingTimeOut == true
  */
 export class Component2RxView extends React.Component<ViewProps> {
     oldRender: JSX.Element | null = null;
