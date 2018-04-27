@@ -1,4 +1,4 @@
-import { rxToReact, componentToRx } from "../src/index";
+import { RxToReact, propsToRx, componentToRx } from "../src/index";
 import * as React from "react";
 import * as DOM from "react-dom";
 import * as rx from "rxjs";
@@ -45,13 +45,13 @@ class MyComp2 extends React.Component<MyProps2> {
                     <br />
                     <label>c es promesa:</label>{"" + !!(this.props.c && typeof this.props.c.then == "function")}
                     <br />
-                    <label>valor de c:</label>{this.props.c && rxToReact(this.props.c.then(x => <span>{x}</span>))}
+                    <label>valor de c:</label>{this.props.c && <RxToReact value={rx.Observable.fromPromise(this.props.c.then(x => <span>{x}</span>))} /> }
                     <br />
                     <label>d es observable:</label> {"" + !!(this.props.d && typeof this.props.d.subscribe == "function")}
                     <br />
                     <label>a:</label>{this.props.a}
                     <br />
-                    <label>valor de d:</label>{this.props.d && rxToReact(this.props.d.map(x => <span>{x}</span>))}
+                    <label>valor de d:</label>{this.props.d && <RxToReact value={this.props.d.map(x => <span>{x}</span>)} />}
                     <br />
                     <label>e:</label> {this.props.e}
                     <br />
@@ -66,7 +66,7 @@ class OtraPrueba extends React.Component<{ d: rx.Observable<string>, e: string }
     render() {
         return (
             <div>
-                {rxToReact(this.props.d.map(x => <span>{x}</span>))}
+                { <RxToReact value={this.props.d.map(x => <span>{x}</span>)}  /> }
                 <br />
                 {this.props.e}
             </div>
@@ -85,7 +85,7 @@ class Texto extends React.Component<{ texto: string }> {
     }
 }
 
-const OtraPruebaRx = componentToRx(OtraPrueba, undefined, undefined, { d: { ignore: { observable: true } } });
+const OtraPruebaRx = componentToRx<{ d: rx.Observable<string>, e: string }>(OtraPrueba, undefined, undefined, { d: { ignore: { observable: true } } });
 const MyCompRx = componentToRx(MyComp);
 const MyComp2Rx = componentToRx(MyComp2, <span>Cargando...</span>, undefined, {
 
@@ -174,9 +174,9 @@ class NeastedComponent extends React.PureComponent<{ text: string }> {
     }
 }
 
-const NeastedComponentRx = componentToRx(NeastedComponent, <span>cargando neasted...</span>, undefined, undefined, 500);
+const NeastedComponentRx = componentToRx(NeastedComponent, <span>cargando neasted...</span>, undefined, undefined);
 
-export class App extends React.Component<{}, { prom: Promise<number>, promValue: number }> {
+export class App extends React.Component<{}, { prom: Promise<number>, promValue: number, cambiar: number }> {
     private timerA = rx.Observable.timer(0, 1000);
     private timerB = rx.Observable.timer(0, 800);
     private timerC = rx.Observable.timer(0, 100);
@@ -192,7 +192,8 @@ export class App extends React.Component<{}, { prom: Promise<number>, promValue:
         super(props);
         this.state = {
             prom: delay(300).then(x => 12),
-            promValue: 12
+            promValue: 12,
+            cambiar: 0
         };
 
         setTimeout(() => {
@@ -201,10 +202,24 @@ export class App extends React.Component<{}, { prom: Promise<number>, promValue:
 
         //rx.Observable.timer(0, 2000).subscribe(x => this.setState({ prom: delay(500).then(y => x), promValue: x }));
     }
+
+    private jInstantaneo = rx.Observable.from([<span>Hola</span>])
+    private jTimer = rx.Observable.timer(0, 1000).map(x => <span>{x}</span>);
+    private jTimer2 = rx.Observable.timer(0, 1).map(x => <span>{x}</span>);
+
+    private PropsObs = propsToRx<{ value: number }>(props =>
+        props
+            .map(x => <span>{x.value}</span>)
+    )
+
     render() {
         const test = 0;
         return (
             <div>
+
+                {/* <MyCompRx a={this.timerA} b={this.timerB} c={33} /> */}
+
+
                 <PromLoadingCompRx a={this.state.prom} b={this.state.promValue} onChange={x => {
                     this.setState({
                         promValue: x,
@@ -212,13 +227,14 @@ export class App extends React.Component<{}, { prom: Promise<number>, promValue:
                     });
                 }} />
 
-                {/* <NeastedComponentRx text={promObs2} /> */}
+                <NeastedComponentRx text={promObs2} />
 
-                {/* <MyCompRx a={this.timerA} b={this.timerB} c={33} />
                 <TextoRx texto={this.cargando} />
                 <TextoRx texto={this.inmediato} />
                 <TextoRx texto={this.error} />
-                {rxToReact(this.timerOtro.map(x => <span>Otro: {x}</span>))}
+                {/*
+                rxToReact(this.timerOtro.map(x => <span>Otro: {x}</span>))
+                */}
 
                 <MyComp2Rx
                     a={this.timerA.map(x => "timer mapeado a: " + x)}
@@ -236,7 +252,7 @@ export class App extends React.Component<{}, { prom: Promise<number>, promValue:
 
                 <LoadingComponentRx texto={delay(4000).then(x => "Se terminó la promesa")} />
                 <LoadingComponentRx texto={delay(4000).then(x => "Siempre cargando")} loading={true} />
-                <LoadingComponentRx texto={delay(4000).then(x => "Nunca cargando")} loading={false} /> */}
+                <LoadingComponentRx texto={delay(4000).then(x => "Nunca cargando")} loading={false} />
             </div>
         )
     }

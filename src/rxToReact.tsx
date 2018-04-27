@@ -1,15 +1,90 @@
-import { Observable } from "rxjs/Observable"
 import * as React from "react";
-import { componentToRx, ComponentToRxPropOptions } from "./component2rx";
-import { ReactComponent } from "./types";
+import * as rx from "rxjs";
 
+const x = rx.Observable.from([]);
+x.subscribe(next => console.log(next));
+export type Element = JSX.Element | null | false;
+export interface RxToReactProps {
+    value?: rx.Observable<Element>;
+}
+export interface RxToReactState {
+    value: Element;
+    observable: rx.Observable<Element> | undefined;
+    subscription: rx.Subscription | undefined;
+    onNext: (x: Element) => void;
+}
 
-const dummy = (props: { comp: JSX.Element | null }) => props.comp || null;
 /**
- * Convert an observable of JSX.Element on to a JSX.Element
- * @param observable A stream of JSX.Elements
+ * Componente que toma como entrada un observable de elementos JSX y los dibuja
  */
-export function rxToReact(observable: Observable<JSX.Element | null> | PromiseLike<JSX.Element | null> | (JSX.Element | null), fallback?: JSX.Element, error?: ReactComponent<{ error: string }>) {
-    const Comp = componentToRx(dummy, fallback, error);
-    return <Comp  comp={observable}/>
+export class RxToReact extends React.PureComponent<RxToReactProps, RxToReactState> {
+    constructor(props) {
+        super(props);
+        this.state = {
+            value: null,
+            observable: undefined,
+            subscription: undefined,
+            onNext: this.onNext
+        };
+    }
+
+    firstRender: boolean = false;
+    onNext = (x: Element) => {
+        if (this.firstRender) {
+            this.setState({
+                value: x
+            });
+        } else {
+            this.state = { ... this.state, value: x };
+        }
+    }
+
+    static getDerivedStateFromProps(nextProps: RxToReactProps, prevState: RxToReactState): RxToReactState {
+        if (nextProps.value != prevState.observable) {
+            //Quitar la subscripción anterior
+            if (prevState.subscription != null) {
+                prevState.subscription.unsubscribe();
+            }
+            if (nextProps.value != null) {
+                let siguienteValor: Element | undefined = undefined;
+                //Esta variable determina si el onNext se llamo después del subscribe, si es true, significa que el onNext se llamo en el mismo instante que la llamada del subscribe
+                let siguienteValorInstantaneo = true;
+                const onNext = (next: Element) => {
+                    siguienteValor = next;
+
+                    //Si el onNext fue instantaneo, no llamamos al onNext ya que será suficiente con devolver el nuevo state
+                    if(!siguienteValorInstantaneo) {
+                        prevState.onNext(next);
+                    }
+                }
+                const newSubscription = nextProps.value.subscribe(onNext);
+                siguienteValorInstantaneo = false;
+                return {
+                    ...prevState,
+                    value: (siguienteValor != undefined) ? siguienteValor : prevState.value,
+                    subscription: newSubscription,
+                    observable: nextProps.value,
+                };
+            } else {
+                return {
+                    ...prevState,
+                    value: null,
+                    observable: undefined,
+                    subscription: undefined
+                };
+            }
+        } else {
+            return prevState;
+        }
+    }
+
+    componentWillUnmount() {
+        if(this.state.subscription)
+            this.state.subscription.unsubscribe();
+    }
+
+    render() {
+        this.firstRender = true;
+        return this.state.value;
+    }
 }
