@@ -45,7 +45,7 @@ class MyComp2 extends React.Component<MyProps2> {
                     <br />
                     <label>c es promesa:</label>{"" + !!(this.props.c && typeof this.props.c.then == "function")}
                     <br />
-                    <label>valor de c:</label>{this.props.c && <RxToReact value={rx.Observable.fromPromise(this.props.c.then(x => <span>{x}</span>))} /> }
+                    <label>valor de c:</label>{this.props.c && <RxToReact value={rx.Observable.fromPromise(this.props.c.then(x => <span>{x}</span>))} />}
                     <br />
                     <label>d es observable:</label> {"" + !!(this.props.d && typeof this.props.d.subscribe == "function")}
                     <br />
@@ -66,7 +66,7 @@ class OtraPrueba extends React.Component<{ d: rx.Observable<string>, e: string }
     render() {
         return (
             <div>
-                { <RxToReact value={this.props.d.map(x => <span>{x}</span>)}  /> }
+                {<RxToReact value={this.props.d.map(x => <span>{x}</span>)} />}
                 <br />
                 {this.props.e}
             </div>
@@ -176,6 +176,7 @@ class NeastedComponent extends React.PureComponent<{ text: string }> {
 
 const NeastedComponentRx = componentToRx(NeastedComponent, <span>cargando neasted...</span>, undefined, undefined);
 
+
 export class App extends React.Component<{}, { prom: Promise<number>, promValue: number, cambiar: number }> {
     private timerA = rx.Observable.timer(0, 1000);
     private timerB = rx.Observable.timer(0, 800);
@@ -186,21 +187,24 @@ export class App extends React.Component<{}, { prom: Promise<number>, promValue:
     private inmediato = new rx.BehaviorSubject("Hola");
     private error = new rx.Subject<string>();
 
+    private errorValorAcc = 0;
     private promesa = delay(3000).then(x => "Finalizó promesa");
+
+
 
     constructor(props) {
         super(props);
         this.state = {
             prom: delay(300).then(x => 12),
             promValue: 12,
-            cambiar: 0
+            cambiar: 0,
         };
 
         setTimeout(() => {
             this.error.error("Este es un error");
         }, 3000);
 
-        //rx.Observable.timer(0, 2000).subscribe(x => this.setState({ prom: delay(500).then(y => x), promValue: x }));
+       
     }
 
     private jInstantaneo = rx.Observable.from([<span>Hola</span>])
@@ -212,13 +216,14 @@ export class App extends React.Component<{}, { prom: Promise<number>, promValue:
             .map(x => <span>{x.value}</span>)
     )
 
+  
     render() {
         const test = 0;
         return (
             <div>
 
                 {/* <MyCompRx a={this.timerA} b={this.timerB} c={33} /> */}
-
+    
 
                 <PromLoadingCompRx a={this.state.prom} b={this.state.promValue} onChange={x => {
                     this.setState({
