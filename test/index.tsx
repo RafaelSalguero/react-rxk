@@ -2,6 +2,7 @@ import { RxToReact, propsToRx, componentToRx } from "../src/index";
 import * as React from "react";
 import * as DOM from "react-dom";
 import * as rx from "rxjs";
+import { ComponenteConStateRx } from "./state";
 
 function delay(ms: number): Promise<void> {
     return new Promise(resolve => window.setTimeout(resolve, ms));
@@ -177,7 +178,7 @@ class NeastedComponent extends React.PureComponent<{ text: string }> {
 const NeastedComponentRx = componentToRx(NeastedComponent, <span>cargando neasted...</span>, undefined, undefined);
 
 
-export class App extends React.Component<{}, { prom: Promise<number>, promValue: number, cambiar: number }> {
+export class App extends React.Component<{}, { prom: Promise<number>, promValue: number, cambiar: number, promValueProm: Promise<number> }> {
     private timerA = rx.Observable.timer(0, 1000);
     private timerB = rx.Observable.timer(0, 800);
     private timerC = rx.Observable.timer(0, 100);
@@ -198,13 +199,14 @@ export class App extends React.Component<{}, { prom: Promise<number>, promValue:
             prom: delay(300).then(x => 12),
             promValue: 12,
             cambiar: 0,
+            promValueProm: delay(5000).then(x => 1)
         };
 
         setTimeout(() => {
             this.error.error("Este es un error");
         }, 3000);
 
-       
+
     }
 
     private jInstantaneo = rx.Observable.from([<span>Hola</span>])
@@ -216,15 +218,37 @@ export class App extends React.Component<{}, { prom: Promise<number>, promValue:
             .map(x => <span>{x.value}</span>)
     )
 
-  
+
     render() {
         const test = 0;
         return (
             <div>
 
                 {/* <MyCompRx a={this.timerA} b={this.timerB} c={33} /> */}
-    
 
+                <button onClick={
+                    () => {
+                        this.setState(prev => ({
+                            promValue: prev.promValue + 1,
+                            promValueProm: delay(10000).then(x => prev.promValue + 1)
+                        }))
+                    }
+                }>
+                    Cambiar prom value prom slow
+                </button>
+
+                <button onClick={
+                    () => {
+                        this.setState(prev => ({
+                            promValue: prev.promValue + 10,
+                            promValueProm: delay(100).then(x => prev.promValue + 10)
+                        }))
+                    }
+                }>
+                    Cambiar prom value prom fast
+                </button>
+                <ComponenteConStateRx value={this.state.promValueProm} />
+                {/*
                 <PromLoadingCompRx a={this.state.prom} b={this.state.promValue} onChange={x => {
                     this.setState({
                         promValue: x,
@@ -237,10 +261,8 @@ export class App extends React.Component<{}, { prom: Promise<number>, promValue:
                 <TextoRx texto={this.cargando} />
                 <TextoRx texto={this.inmediato} />
                 <TextoRx texto={this.error} />
-                {/*
                 rxToReact(this.timerOtro.map(x => <span>Otro: {x}</span>))
-                */}
-
+                
                 <MyComp2Rx
                     a={this.timerA.map(x => "timer mapeado a: " + x)}
                     b={this.promesa}
@@ -248,16 +270,17 @@ export class App extends React.Component<{}, { prom: Promise<number>, promValue:
                     d={this.timerC.map(x => "timer otro mapeo a: " + x)}
                     e={"Cadena establecida directamente"}
                 />
-
+                
                 <TextoRxInicial texto={this.promesa} />
-
+                
                 <OtraPruebaRx
                     d={this.timerC.map(x => "timer otro mapeo 2 a: " + x)}
                     e={this.timerA.map(x => "timer otro mapeo 3 a: " + x)} />
-
+                    
                 <LoadingComponentRx texto={delay(4000).then(x => "Se terminó la promesa")} />
                 <LoadingComponentRx texto={delay(4000).then(x => "Siempre cargando")} loading={true} />
                 <LoadingComponentRx texto={delay(4000).then(x => "Nunca cargando")} loading={false} />
+            */}
             </div>
         )
     }

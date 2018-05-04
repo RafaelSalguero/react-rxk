@@ -45,7 +45,8 @@ function renderComponentToRx<TProps>(
     Component: ReactComponent<TProps>,
     Loading: ReactComponent<Partial<TProps>>,
     Error: ReactComponent<{ errores: PropError[] }>,
-    options?: ComponentToRxOptions<TProps>
+    options: ComponentToRxOptions<TProps> | undefined,
+    loadingDelayMs: number 
 ): rx.Observable<JSX.Element | null> {
 
     function getIgnore(key: keyof TProps): {
@@ -132,7 +133,7 @@ function renderComponentToRx<TProps>(
         const arr = enumObject(values);
         const errores = arr.filter(x => x.value.error != null);
         return errores.map(x => ({
-            error:  x.value.error,
+            error: x.value.error,
             prop: x.key
         }));
     }
@@ -164,6 +165,7 @@ function renderComponentToRx<TProps>(
             //Convertir los props de observables a un observable de los props 
             .map(props => objRxToRxObj(props) as any as rx.Observable<PropValues>)
             .switch()
+
             //Tenemos que agarrar el ultimo valor del prop antes de que iniciara a cargar
             .scan((acc, value) => mapObject(value, (value, key) => {
 
@@ -178,20 +180,35 @@ function renderComponentToRx<TProps>(
             } as PropValues)
         ;
 
+    interface ViewPropsObs {
+        props: TProps,
+        errores: PropError[],
+        cargando: boolean,
+        first: boolean
+    };
     const viewObs =
         propsObs
             //Determinar si el componente tiene error y si esta cargando y extraer los props
             .map(x => ({
                 props: mapObject(x, y => y.value) as TProps,
                 errores: obtenerError(x),
-                cargando: estaCargando(x)
+                cargando: estaCargando(x),
             }))
+            .scan((acc, value) => ({
+                ...value,
+                first: (acc.first as any) == null
+            }), {
+                first: null,
+            } as any)
+            .map(x => x as ViewPropsObs)
+            //Si se pone en cargando se espera cierto tiempo, esto hace que no se muestre el icono de cargando inmediatamente
+            .debounce(x => (x.cargando && !x.first) ? rx.Observable.timer(loadingDelayMs) : Promise.resolve(0))
             //Asignar las propiedades que estan definidas como "loading"
             .map(x => ({
                 ...x,
                 props: {
                     ... (x.props as any),
-                    ... getLoadingProps(x.cargando)
+                    ...getLoadingProps(x.cargando)
                 } as TProps
             }))
         ;
@@ -228,7 +245,8 @@ export function componentToRx<TProps>(
     Component: ReactComponent<TProps>,
     Loading?: ReactComponent<Partial<TProps>> | JSX.Element,
     Error?: ReactComponent<{ errores: PropError[] }> | JSX.Element,
-    options?: ComponentToRxOptions<TProps>
+    options?: ComponentToRxOptions<TProps>,
+    loadingTimeoutMs: number= 500
 ): React.ComponentClass<Rxfy<TProps>> {
     const LoadingEff = isJsxElement(Loading) ? (() => Loading) :
         (Loading || Component);
@@ -241,7 +259,9 @@ export function componentToRx<TProps>(
             Component,
             LoadingEff,
             ErrorEff,
-            options);
+            options,
+            loadingTimeoutMs
+        );
     }
 
     return propsToRx(render);
