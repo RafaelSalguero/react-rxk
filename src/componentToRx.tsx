@@ -1,8 +1,9 @@
 import { ReactComponent, Rxfy, RxfyScalar, propsToRx } from "./";
 import * as rx from "rxjs";
 import * as React from "react";
-import { isPromise, isObservable, mapObject, nullsafe, objRxToRxObj, enumObject, any, filterObject, shallowDiff, intersect, intersectKeys } from "keautils";
+import { isPromise, isObservable, mapObject, nullsafe, objRxToRxObj, enumObject, any, filterObject, shallowDiff, intersect, intersectKeys, contains, setEquals } from "keautils";
 import { PropError, ErrorView } from "./error";
+import { filter } from "rxjs/operator/filter";
 
 export interface ComponentToRxPropOptions<T> {
     /**Ignored observables or promises are passed as-is to the inner component */
@@ -194,42 +195,54 @@ function renderComponentToRx<TProps>(
     }
 
     function propValuesMapSwich(obs: rx.Observable<PropValuesRx>) {
-        type Seed = {
-            last: PropValuesRx,
-            curr: PropValuesRx,
-            diff: { [K in keyof TProps]?: true }
-        }
-        const r = obs
-            .scan((acc: Seed, curr: PropValuesRx) => {
-                const last = acc.curr;
-                const diff = shallowDiff(curr, last);
-                const next: Seed = {
-                    curr: curr,
-                    last: last,
-                    diff: diff
-                };
-
-                return next;
-            }, {
-                last: {},
-                curr: {},
-                diff: {}
-            } as Seed);
-
-
         let last: PropValuesRx = {} as any;
-        return new rx.Observable<PropValues>(observer => {
-            obs.subscribe((current : PropValuesRx) => {
+        let lastCombine: PropValues = {} as any;
+        let subscriptions: { [K in keyof TProps]: rx.Subscription } = {} as any;
+        const ret = new rx.Observable<PropValues>(observer => {
+            obs.subscribe((current: PropValuesRx) => {
                 const diff = shallowDiff(current, last);
                 const diffKeys = enumObject(diff).map(x => x.key);
                 //Propiedades de las cuales se hay de desubscribir
-                const unsubscribeKeys = intersect(Object.keys(last),  diffKeys);
-                const subscribeKeys = intersect(Object.keys(current), diffKeys )
+                const currentKeys = Object.keys(current) as (keyof TProps)[];
+                const unsubscribeKeys = intersect(Object.keys(last), diffKeys) as (keyof TProps)[];
+                const subscribeKeys = intersect(currentKeys, diffKeys) as (keyof TProps)[];
+                last = current;
+
+                function onInnerValue<K extends keyof TProps>(key: K, value: PropValue<TProps[K]>) {
+                    const newCombine = {
+                        ... (lastCombine as any),
+                        [key]: value
+                    };
+
+                    //Quitamos del combine los props que no se encuentran en el current:
+                    const filtered = filterObject(newCombine, (value, key) => contains(currentKeys, key));
+                    lastCombine = filtered;
+
+                    //Checamos si el ultimo combine esta completo, en ese caso, emitimos el valor
+                    const combineKeys = Object.keys(lastCombine);
+                    const combineComplete = setEquals(currentKeys, combineKeys);
+                    if(combineComplete) {
+                        observer.next(lastCombine);
+                    }
+                }
+
+                //Quitamos las subscripciones anteriores
+                for (const k of unsubscribeKeys) {
+                    subscriptions[k].unsubscribe();
+                    delete subscriptions[k];
+                }
+
+                //Nos subscribimos a los nuevos props:
+                for(const k of subscribeKeys) {
+                    const newSub = current[k].subscribe(x => onInnerValue(k, x));
+                    subscriptions[k] = newSub;
+                }
             });
         });
-        
-        r.subscribe(x => console.log(x));
 
+        //ret.subscribe(x => console.log(x));
+
+        return ret;
     }
 
     const propsAntesSwitch =
@@ -249,17 +262,22 @@ function renderComponentToRx<TProps>(
         ;
 
     const propsValues = toPopValuesObs(propsAntesSwitch);
-    propValuesMapSwich(propsValues);
+    const propMapSwich = propValuesMapSwich(propsValues);
+
+    // const propMapSwichOld = propsValues
+    //   //Convertir los props de observables a un observable de los props 
+    //   .map(props => objRxToRxObj(props) as any as rx.Observable<PropValues>)
+    //   .switch()
+    // ;
+
+    //propMapSwichOld.subscribe(x => console.log(x));
 
     const propsObs =
-        propsValues
-
             //En este punto tenemos un observable de objetos, donde cada propiedad es un 
             //observable de PropValue, y el prop value envuelve al valor del prop, ademas de a su valor inicial, si esta cargando/con error o no
 
             //Convertir los props de observables a un observable de los props 
-            .map(props => objRxToRxObj(props) as any as rx.Observable<PropValues>)
-            .switch()
+            propMapSwich
             //Tenemos que agarrar el ultimo valor del prop antes de que iniciara a cargar
             .scan((acc, value) => mapObject(value, (value, key) => {
 
@@ -348,8 +366,6 @@ export function componentToRx<TProps>(
         Error || ErrorView;
 
     const render = (props: rx.Observable<Rxfy<TProps>>) => {
-        props.subscribe(x => console.log(x));
-
         return renderComponentToRx(
             props,
             Component,

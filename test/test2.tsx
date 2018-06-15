@@ -6,7 +6,7 @@ import { contains } from "keautils";
 
 class MyComp extends React.PureComponent<{
     guias: string[],
-    otroProp: {}
+    otroProp: number
 }> {
     constructor(props) {
         super(props);
@@ -59,7 +59,7 @@ class Form extends React.PureComponent<{
                 {
                     this.props.view && <MyCompRx 
                         guias={obs} 
-                        otroProp={{}}
+                        otroProp={Math.random()}
                         />
                 }
             </div>
