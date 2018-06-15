@@ -6,7 +6,7 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node node_modules/webpack-dev-server/bin/webpack-dev-server  --config \"./test/webpack.config.js\"",
+    "start": "node node_modules/webpack-dev-server/bin/webpack-dev-server  --config \"./test/webpack.config.js\" --port 8082",
     "prepublishOnly": "tsc",
     "tsc": "tsc --noemit"
   },

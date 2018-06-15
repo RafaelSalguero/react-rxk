@@ -11,7 +11,7 @@ const production = [
 ];
 
 const config = {
-    entry: ["test/index.tsx"],
+    entry: ["test/test2.tsx"],
     output: {
         path: __dirname + "/www",
         filename: "bundle.js",

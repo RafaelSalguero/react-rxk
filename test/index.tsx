@@ -219,10 +219,16 @@ export class App extends React.Component<{}, { prom: Promise<number>, promValue:
     )
 
 
+    prom2 =  delay(1000).then(x => <div>Hola a todos</div>);
+    obs2 = rx.Observable.fromPromise(this.prom2);
+
     render() {
         const test = 0;
         return (
             <div>
+
+                <RxToReact value={this.obs2} />
+
 
                 {/* <MyCompRx a={this.timerA} b={this.timerB} c={33} /> */}
 
