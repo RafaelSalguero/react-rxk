@@ -230,7 +230,7 @@ export class App extends React.Component<{}, { prom: Promise<number>, promValue:
                 <RxToReact value={this.obs2} />
 
 
-                {/* <MyCompRx a={this.timerA} b={this.timerB} c={33} /> */}
+                <MyCompRx a={this.timerA} b={this.timerB} c={33} />
 
                 <button onClick={
                     () => {
@@ -254,7 +254,6 @@ export class App extends React.Component<{}, { prom: Promise<number>, promValue:
                     Cambiar prom value prom fast
                 </button>
                 <ComponenteConStateRx value={this.state.promValueProm} />
-                {/*
                 <PromLoadingCompRx a={this.state.prom} b={this.state.promValue} onChange={x => {
                     this.setState({
                         promValue: x,
@@ -267,7 +266,6 @@ export class App extends React.Component<{}, { prom: Promise<number>, promValue:
                 <TextoRx texto={this.cargando} />
                 <TextoRx texto={this.inmediato} />
                 <TextoRx texto={this.error} />
-                rxToReact(this.timerOtro.map(x => <span>Otro: {x}</span>))
                 
                 <MyComp2Rx
                     a={this.timerA.map(x => "timer mapeado a: " + x)}
@@ -286,7 +284,6 @@ export class App extends React.Component<{}, { prom: Promise<number>, promValue:
                 <LoadingComponentRx texto={delay(4000).then(x => "Se terminó la promesa")} />
                 <LoadingComponentRx texto={delay(4000).then(x => "Siempre cargando")} loading={true} />
                 <LoadingComponentRx texto={delay(4000).then(x => "Nunca cargando")} loading={false} />
-            */}
             </div>
         )
     }
