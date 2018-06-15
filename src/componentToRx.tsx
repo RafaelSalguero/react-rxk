@@ -1,7 +1,7 @@
 import { ReactComponent, Rxfy, RxfyScalar, propsToRx } from "./";
 import * as rx from "rxjs";
 import * as React from "react";
-import { isPromise, isObservable, mapObject, nullsafe, objRxToRxObj, enumObject, any, filterObject } from "keautils";
+import { isPromise, isObservable, mapObject, nullsafe, objRxToRxObj, enumObject, any, filterObject, shallowDiff, intersect, intersectKeys } from "keautils";
 import { PropError, ErrorView } from "./error";
 
 export interface ComponentToRxPropOptions<T> {
@@ -46,7 +46,7 @@ function renderComponentToRx<TProps>(
     Loading: ReactComponent<Partial<TProps>>,
     Error: ReactComponent<{ errores: PropError[] }>,
     options: ComponentToRxOptions<TProps> | undefined,
-    loadingDelayMs: number 
+    loadingDelayMs: number
 ): rx.Observable<JSX.Element | null> {
 
     function getIgnore(key: keyof TProps): {
@@ -144,7 +144,95 @@ function renderComponentToRx<TProps>(
         return ret;
     }
 
-    const propsObs =
+    type PropsRx = { [K in keyof TProps]: rx.Observable<TProps[K]> };
+    type PropValuesRx = {
+        [K in keyof TProps]: rx.Observable<PropValue<TProps[K]>>
+    };
+
+    function toPopValuesObs(obs:
+        rx.Observable<PropsRx>
+    ): rx.Observable<PropValuesRx> {
+        type Seed = {
+            last: PropsRx,
+            curr: PropsRx,
+            diff: { [K in keyof TProps]?: true },
+            propValues: PropValuesRx
+        }
+
+        const r = obs
+            .scan((acc: Seed, value: PropsRx) => {
+                const last = acc.curr;
+                const diff = shallowDiff(value, last);
+                //Sólo recalculamos el ObsToPropValue de los observables que SI cambiaron
+                const propValues =
+                    mapObject(value, (val, key) => {
+                        if (diff[key]) {
+                            //Recalcular:
+                            return ObsToPropValue(val, key);
+                        } else {
+                            //Devolver el anterior:
+                            return acc.propValues[key];
+                        }
+                    });
+
+                const seed = ({
+                    last: acc.curr,
+                    curr: value,
+                    diff: shallowDiff(value, acc.curr),
+                    propValues: propValues
+                } as Seed);
+
+                return seed;
+            }, {
+                last: {},
+                curr: {},
+                diff: {}
+            } as Seed)
+            .map(x => x.propValues);
+
+        return r;
+    }
+
+    function propValuesMapSwich(obs: rx.Observable<PropValuesRx>) {
+        type Seed = {
+            last: PropValuesRx,
+            curr: PropValuesRx,
+            diff: { [K in keyof TProps]?: true }
+        }
+        const r = obs
+            .scan((acc: Seed, curr: PropValuesRx) => {
+                const last = acc.curr;
+                const diff = shallowDiff(curr, last);
+                const next: Seed = {
+                    curr: curr,
+                    last: last,
+                    diff: diff
+                };
+
+                return next;
+            }, {
+                last: {},
+                curr: {},
+                diff: {}
+            } as Seed);
+
+
+        let last: PropValuesRx = {} as any;
+        return new rx.Observable<PropValues>(observer => {
+            obs.subscribe((current : PropValuesRx) => {
+                const diff = shallowDiff(current, last);
+                const diffKeys = enumObject(diff).map(x => x.key);
+                //Propiedades de las cuales se hay de desubscribir
+                const unsubscribeKeys = intersect(Object.keys(last),  diffKeys);
+                const subscribeKeys = intersect(Object.keys(current), diffKeys )
+            });
+        });
+        
+        r.subscribe(x => console.log(x));
+
+    }
+
+    const propsAntesSwitch =
         props
             //Convertir todos los props a observable, asi ya no andamos manejando también promesas y valores
             //el objeto resultante indica si se debe de ignorar, ignorar significa pasar el valor tal cual al componente final
@@ -157,15 +245,21 @@ function renderComponentToRx<TProps>(
                     [K in keyof TProps]: rx.Observable<TProps[K]>
                 })
 
-            //Convertir cada prop a un PropValue
-            .map(props => mapObject(props, (prop, key) => ObsToPropValue(prop, key)) as {
-                [K in keyof TProps]: rx.Observable<PropValue<TProps[K]>>
-            })
+        //En este punto tenemos un observable de objetos, donde cada propiedad del objeto es un observable del valor del prop
+        ;
+
+    const propsValues = toPopValuesObs(propsAntesSwitch);
+    propValuesMapSwich(propsValues);
+
+    const propsObs =
+        propsValues
+
+            //En este punto tenemos un observable de objetos, donde cada propiedad es un 
+            //observable de PropValue, y el prop value envuelve al valor del prop, ademas de a su valor inicial, si esta cargando/con error o no
 
             //Convertir los props de observables a un observable de los props 
             .map(props => objRxToRxObj(props) as any as rx.Observable<PropValues>)
             .switch()
-
             //Tenemos que agarrar el ultimo valor del prop antes de que iniciara a cargar
             .scan((acc, value) => mapObject(value, (value, key) => {
 
@@ -246,7 +340,7 @@ export function componentToRx<TProps>(
     Loading?: ReactComponent<Partial<TProps>> | JSX.Element,
     Error?: ReactComponent<{ errores: PropError[] }> | JSX.Element,
     options?: ComponentToRxOptions<TProps>,
-    loadingTimeoutMs: number= 500
+    loadingTimeoutMs: number = 500
 ): React.ComponentClass<Rxfy<TProps>> {
     const LoadingEff = isJsxElement(Loading) ? (() => Loading) :
         (Loading || Component);
@@ -254,6 +348,8 @@ export function componentToRx<TProps>(
         Error || ErrorView;
 
     const render = (props: rx.Observable<Rxfy<TProps>>) => {
+        props.subscribe(x => console.log(x));
+
         return renderComponentToRx(
             props,
             Component,
