@@ -1,7 +1,7 @@
 import { ReactComponent, Rxfy, RxfyScalar, propsToRx } from "./";
 import * as rx from "rxjs";
 import * as React from "react";
-import { isPromise, isObservable, mapObject, nullsafe, objRxToRxObj, enumObject, any, filterObject, shallowDiff, intersect, intersectKeys, contains, setEquals } from "keautils";
+import { isPromise, isObservable, mapObject, nullsafe, objRxToRxObj, enumObject, any, filterObject, shallowDiff, intersect, intersectKeys, contains, setEquals, all } from "keautils";
 import { PropError, ErrorView } from "./error";
 import { filter } from "rxjs/operator/filter";
 
@@ -40,6 +40,29 @@ function toObservable<T>(x: T | Promise<T> | rx.Observable<T>): rx.Observable<T>
 }
 
 
+function getIgnore<TProps>(key: keyof TProps, options: ComponentToRxOptions<TProps> | undefined): {
+    promise: boolean,
+    observable: boolean
+} {
+    const ignore = options && options[key] && options[key]!.ignore || {};
+    return {
+        promise: ignore.promise || false,
+        observable: ignore.observable || false
+    };
+}
+
+function shouldIgnore<TProps, K extends keyof TProps>(x: RxfyScalar<TProps[K]>, key: K, options: ComponentToRxOptions<TProps> | undefined): boolean {
+    const ignore = getIgnore<TProps>(key, options);
+    const prom = isPromise(x);
+    const obs = isObservable(x);
+    return (!obs && !prom) || (prom && ignore.promise) || (obs && ignore.observable);
+}
+
+/**Devuelve true si todas las propiedades pasan como "ignore", es decir, que se deben de pasar tal cual al componente dibujado */
+function allPropsIgnore<TProps>(props: Rxfy<TProps>, options: ComponentToRxOptions<TProps> | undefined): boolean {
+    const allProps = enumObject(props);
+    return all(allProps, x => shouldIgnore(x.value, x.key, options));
+}
 
 function renderComponentToRx<TProps>(
     props: rx.Observable<Rxfy<TProps>>,
@@ -50,16 +73,7 @@ function renderComponentToRx<TProps>(
     loadingDelayMs: number
 ): rx.Observable<JSX.Element | null> {
 
-    function getIgnore(key: keyof TProps): {
-        promise: boolean,
-        observable: boolean
-    } {
-        const ignore = options && options[key] && options[key]!.ignore || {};
-        return {
-            promise: ignore.promise || false,
-            observable: ignore.observable || false
-        };
-    }
+
 
     function getInitial<Key extends keyof TProps>(key: Key): TProps[Key] | undefined {
         return options && options[key] && options[key]!.initial;
@@ -71,12 +85,7 @@ function renderComponentToRx<TProps>(
         return map as {};
     }
 
-    function shouldIgnore<K extends keyof TProps>(x: RxfyScalar<TProps[K]>, key: K): boolean {
-        const ignore = getIgnore(key);
-        const prom = isPromise(x);
-        const obs = isObservable(x);
-        return (!obs && !prom) || (prom && ignore.promise) || (obs && ignore.observable);
-    }
+
 
     function toObservableIgnore<K extends keyof TProps>(x: RxfyScalar<TProps[K]>, key: keyof TProps): {
         obs: rx.Observable<TProps[K]>,
@@ -84,7 +93,7 @@ function renderComponentToRx<TProps>(
         original: TProps[K]
     } {
         const ret = {
-            ignore: shouldIgnore(x, key),
+            ignore: shouldIgnore<TProps, typeof key>(x, key, options),
             obs: toObservable(x),
             original: x
         };
@@ -221,7 +230,7 @@ function renderComponentToRx<TProps>(
                     //Checamos si el ultimo combine esta completo, en ese caso, emitimos el valor
                     const combineKeys = Object.keys(lastCombine);
                     const combineComplete = setEquals(currentKeys, combineKeys);
-                    if(combineComplete) {
+                    if (combineComplete) {
                         observer.next(lastCombine);
                     }
                 }
@@ -233,7 +242,7 @@ function renderComponentToRx<TProps>(
                 }
 
                 //Nos subscribimos a los nuevos props:
-                for(const k of subscribeKeys) {
+                for (const k of subscribeKeys) {
                     const newSub = current[k].subscribe(x => onInnerValue(k, x));
                     subscriptions[k] = newSub;
                 }
@@ -273,11 +282,11 @@ function renderComponentToRx<TProps>(
     //propMapSwichOld.subscribe(x => console.log(x));
 
     const propsObs =
-            //En este punto tenemos un observable de objetos, donde cada propiedad es un 
-            //observable de PropValue, y el prop value envuelve al valor del prop, ademas de a su valor inicial, si esta cargando/con error o no
+        //En este punto tenemos un observable de objetos, donde cada propiedad es un 
+        //observable de PropValue, y el prop value envuelve al valor del prop, ademas de a su valor inicial, si esta cargando/con error o no
 
-            //Convertir los props de observables a un observable de los props 
-            propMapSwich
+        //Convertir los props de observables a un observable de los props 
+        propMapSwich
             //Tenemos que agarrar el ultimo valor del prop antes de que iniciara a cargar
             .scan((acc, value) => mapObject(value, (value, key) => {
 
@@ -376,5 +385,11 @@ export function componentToRx<TProps>(
         );
     }
 
-    return propsToRx(render);
+    const RxComp = propsToRx(render);
+    return class ComponentToRx extends React.PureComponent<Rxfy<TProps>> {
+        render() {
+            const passThru = allPropsIgnore(this.props, options);
+            return passThru ? <Component {...this.props} /> : <RxComp {... this.props} />
+        }
+    };
 }
