@@ -3,9 +3,9 @@ import * as rx from "rxjs";
 import { Rxfy } from "./types";
 import { PropError, ErrorView, ErrorViewProps } from "./error";
 import { renderComponentToRx, ComponentToRxOptions, isJsxElement } from "./componentToRx";
-import { createSelector } from "keautils";
+import { createSelector, shallowEquals, enumObject, any } from "keautils";
 import { PropsToRx } from "./propsToRx";
- 
+
 
 export interface RxProps<T> {
     render: React.ComponentType<T>;
@@ -38,6 +38,23 @@ export class Rx<T> extends React.PureComponent<RxProps<T>> {
             Error || ErrorView
     );
 
+    shouldComponentUpdate(nextProps: RxProps<T>) {
+        //Compara en forma "shallow" a todos los props excepto al "prop":
+        type Comparasiones = Required<{ [k in keyof RxProps<any>]: boolean }>;
+        const curr = this.props;
+        const comps: Comparasiones = {
+            error: curr.error != nextProps.error,
+            loading: curr.loading != nextProps.loading,
+            loadingTimeoutMs: curr.loadingTimeoutMs != nextProps.loadingTimeoutMs,
+            options: curr.options != nextProps.options,
+            render: curr.render != nextProps.render,
+            props: !shallowEquals(curr.props, nextProps.props)
+        }
+
+        const anyDiff = any(enumObject(comps).map(x => x.value), x => x == true);
+        return anyDiff;
+    }
+
     obsRender = createSelector(this.comp, this.loadingEff, this.errorEff, this.options, this.loadingTimeoutMs,
         (comp, loading, error, options, loadingTimeoutMs) =>
             (props: rx.Observable<Rxfy<T>>) => renderComponentToRx(
@@ -48,12 +65,12 @@ export class Rx<T> extends React.PureComponent<RxProps<T>> {
                 options,
                 loadingTimeoutMs || defaultLoadingTimeout
             )
-        );
+    );
 
     render() {
         const render = this.obsRender(this.props);
         return <PropsToRx render={render} props={this.props.props} />;
-    }  
+    }
 }
 
 
@@ -73,7 +90,7 @@ export function componentToRx<TProps>(
 ): React.ComponentClass<Rxfy<TProps>> {
     return class ComponentToRx extends React.PureComponent<Rxfy<TProps>> {
         render() {
-            return <Rx<TProps> 
+            return <Rx<TProps>
                 props={this.props}
                 render={Component}
                 loading={Loading}
