@@ -21,7 +21,7 @@ const defaultLoadingTimeout = 300;
 /**
  * Dibuja un component síncrono pasando props que aceptan promesas y observables.
  */
-export class Rx<T> extends React.PureComponent<RxProps<T>> {
+export class Rx<T> extends React.Component<RxProps<T>> {
     comp = (x: RxProps<T>) => x.render;
     loading = (x: RxProps<T>) => x.loading;
     error = (x: RxProps<T>) => x.error;
