@@ -4,6 +4,7 @@ import { Rxfy } from "./types";
 import { PropError, ErrorView, ErrorViewProps } from "./error";
 import { renderComponentToRx, ComponentToRxOptions, isJsxElement } from "./componentToRx";
 import { createSelector } from "keautils";
+import { PropsToRx } from "./propsToRx";
  
 
 export interface RxProps<T> {
@@ -49,5 +50,38 @@ export class Rx<T> extends React.PureComponent<RxProps<T>> {
             )
         );
 
-        
+    render() {
+        const render = this.obsRender(this.props);
+        return <PropsToRx render={render} props={this.props.props} />;
+    }  
 }
+
+
+/**
+ * Devuelve un nuevo componente que acepta el valor singular, una promesa, o un observable en cualquiera de sus props, manejando correctamente el estado de cargando y de errores
+ * @param Component Componente que se va a dibujar cuando todos los props han sido cargados y no exista ningún error de ningun observables/promesa
+ * @param Loading Componente que se va a dibujar cuando existan props que aún estan cargando. Cargando implica que aún no se ha recibido ningún valor. Si es undefined se va a dibujar el componente, note que esto puede implicar que el componente reciva props como undefined cuando estas aún estén cargando
+ * @param Error Componente que se va a dibujar cuando exista uno o mas props tales que su observable/promesa ha notificado de un error
+ * @param options Opciones para los props
+ */
+export function componentToRx<TProps>(
+    Component: React.ComponentType<TProps>,
+    Loading?: React.ComponentType<Partial<TProps>> | JSX.Element,
+    Error?: React.ComponentType<ErrorViewProps> | JSX.Element,
+    options?: ComponentToRxOptions<TProps>,
+    loadingTimeoutMs: number = 500
+): React.ComponentClass<Rxfy<TProps>> {
+    return class ComponentToRx extends React.PureComponent<Rxfy<TProps>> {
+        render() {
+            return <Rx<TProps> 
+                props={this.props}
+                render={Component}
+                loading={Loading}
+                error={Error}
+                options={options}
+                loadingTimeoutMs={loadingTimeoutMs}
+            />
+        }
+    };
+}
+

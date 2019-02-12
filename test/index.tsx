@@ -1,4 +1,4 @@
-import { RxToReact, propsToRx, componentToRx } from "../src/index";
+import { RxToReact, PropsToRx, componentToRx, Rx } from "../src/index";
 import * as React from "react";
 import * as DOM from "react-dom";
 import * as rx from "rxjs";
@@ -159,6 +159,7 @@ class SimpleText extends React.PureComponent<{ text: string }> {
         );
     }
 }
+const cargando = <span>cargando...</span>;
 const SimpleTextRx = componentToRx(SimpleText, <span>cargando...</span>, undefined, undefined, 1000);
 
 class NeastedComponent extends React.PureComponent<{ text: string }> {
@@ -213,19 +214,20 @@ export class App extends React.Component<{}, { prom: Promise<string>, promValue:
     private jTimer = rx.Observable.timer(0, 1000).map(x => <span>{x}</span>);
     private jTimer2 = rx.Observable.timer(0, 1).map(x => <span>{x}</span>);
 
-    private PropsObs = propsToRx<{ value: number }>(props =>
-        props
-            .map(x => <span>{x.value}</span>)
-    )
-
 
     prom2 =  delay(1000).then(x => <div>Hola a todos</div>);
     obs2 = rx.Observable.from([<div>Hola a todos</div>]);
-        
     render() {
         return (
             <div>
-                <SimpleTextRx text={this.state.prom} />
+                <Rx 
+                    render={SimpleText}
+                    loading={cargando}
+                    props={{
+                        text: this.state.prom
+                    }} 
+                />
+
                 <button onClick={() => this.setState({
                     prom: delay(4000).then(x => "Hola")
                 })} >

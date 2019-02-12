@@ -1,9 +1,10 @@
-import { ReactComponent, Rxfy, RxfyScalar, propsToRx } from "./";
+import { ReactComponent, Rxfy, RxfyScalar } from "./types";
 import * as rx from "rxjs";
 import * as React from "react";
 import { isPromiseLike, isObservable, mapObject, nullsafe, objRxToRxObj, enumObject, any, filterObject, shallowDiff, intersect, intersectKeys, contains, setEquals, all, debounceSync, syncResolve, delay } from "keautils";
 import { PropError, ErrorView } from "./error";
 import { filter } from "rxjs/operator/filter";
+import { TopProperty } from "csstype";
 
 export interface ComponentToRxPropOptions<T> {
     /**Ignored observables or promises are passed as-is to the inner component */
@@ -65,7 +66,7 @@ function allPropsIgnore<TProps>(props: Rxfy<TProps>, options: ComponentToRxOptio
     return all(allProps, x => shouldIgnore(x.value, x.key, options));
 }
 
-export function renderComponentToRx<TProps>(
+export function renderComponentToRx<TProps extends { [k: string]: any }>(
     props: rx.Observable<Rxfy<TProps>>,
     Component: ReactComponent<TProps>,
     Loading: ReactComponent<Partial<TProps>>,
@@ -73,15 +74,14 @@ export function renderComponentToRx<TProps>(
     options: ComponentToRxOptions<TProps> | undefined,
     loadingDelayMs: number
 ): rx.Observable<JSX.Element | null> {
-
-
+    type KeyofProps = Extract<keyof TProps, string>;
 
     function getInitial<Key extends keyof TProps>(key: Key): TProps[Key] | undefined {
         return options && options[key] && options[key]!.initial;
     }
 
     function getLoadingProps(loading: boolean): {} {
-        const filtrado = filterObject(options || {}, x => x && x.loading || false);
+        const filtrado = filterObject(options || {}, (x: ComponentToRxPropOptions<any>) => x && x.loading || false);
         const map = mapObject(filtrado, x => loading);
         return map as {};
     }
@@ -141,7 +141,12 @@ export function renderComponentToRx<TProps>(
     };
 
     function obtenerError(values: PropValues): PropError[] {
-        const arr = enumObject(values);
+        const arr = enumObject(values) as {
+            key: KeyofProps,
+            value: PropValue<TProps[keyof TProps]>
+        }[];
+
+
         const errores = arr.filter(x => x.value.error != null);
         return errores.map(x => ({
             error: x.value.error,
@@ -346,44 +351,5 @@ export function renderComponentToRx<TProps>(
 /**Check if a value is a JSX.Element */
 export function isJsxElement(x: any): x is JSX.Element {
     return React.isValidElement(x);
-}
-
-
-/**
- * Devuelve un nuevo componente que acepta el valor singular, una promesa, o un observable en cualquiera de sus props, manejando correctamente el estado de cargando y de errores
- * @param Component Componente que se va a dibujar cuando todos los props han sido cargados y no exista ningún error de ningun observables/promesa
- * @param Loading Componente que se va a dibujar cuando existan props que aún estan cargando. Cargando implica que aún no se ha recibido ningún valor. Si es undefined se va a dibujar el componente, note que esto puede implicar que el componente reciva props como undefined cuando estas aún estén cargando
- * @param Error Componente que se va a dibujar cuando exista uno o mas props tales que su observable/promesa ha notificado de un error
- * @param options Opciones para los props
- */
-export function componentToRx<TProps>(
-    Component: ReactComponent<TProps>,
-    Loading?: ReactComponent<Partial<TProps>> | JSX.Element,
-    Error?: ReactComponent<{ errores: PropError[] }> | JSX.Element,
-    options?: ComponentToRxOptions<TProps>,
-    loadingTimeoutMs: number = 500
-): React.ComponentClass<Rxfy<TProps>> {
-    const LoadingEff = isJsxElement(Loading) ? (() => Loading) :
-        (Loading || Component);
-    const ErrorEff = isJsxElement(Error) ? (() => Error) :
-        Error || ErrorView;
-
-    const render = (props: rx.Observable<Rxfy<TProps>>) => {
-        return renderComponentToRx(
-            props,
-            Component,
-            LoadingEff,
-            ErrorEff,
-            options,
-            loadingTimeoutMs
-        );
-    }
-
-    const RxComp = propsToRx(render);
-    return class ComponentToRx extends React.PureComponent<Rxfy<TProps>> {
-        render() {
-            return <RxComp {... this.props} />
-        }
-    };
 }
 

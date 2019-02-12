@@ -1,4 +1,4 @@
-import { RxToReact, propsToRx, componentToRx } from "../src/index";
+import { RxToReact, PropsToRx, componentToRx } from "../src/index";
 import * as React from "react";
 import * as DOM from "react-dom";
 import * as rx from "rxjs";
