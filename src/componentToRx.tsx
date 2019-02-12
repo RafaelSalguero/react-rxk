@@ -1,7 +1,7 @@
 import { ReactComponent, Rxfy, RxfyScalar, propsToRx } from "./";
 import * as rx from "rxjs";
 import * as React from "react";
-import { isPromise, isObservable, mapObject, nullsafe, objRxToRxObj, enumObject, any, filterObject, shallowDiff, intersect, intersectKeys, contains, setEquals, all } from "keautils";
+import { isPromiseLike, isObservable, mapObject, nullsafe, objRxToRxObj, enumObject, any, filterObject, shallowDiff, intersect, intersectKeys, contains, setEquals, all, debounceSync, syncResolve, delay } from "keautils";
 import { PropError, ErrorView } from "./error";
 import { filter } from "rxjs/operator/filter";
 
@@ -30,7 +30,7 @@ type UndoToObs<T> =
 
 /**Convierte un valor a observable */
 function toObservable<T>(x: T | Promise<T> | rx.Observable<T>): rx.Observable<T> {
-    if (isPromise(x)) {
+    if (isPromiseLike(x)) {
         return rx.Observable.fromPromise(x);
     } else if (isObservable(x)) {
         return x;
@@ -51,9 +51,10 @@ function getIgnore<TProps>(key: keyof TProps, options: ComponentToRxOptions<TPro
     };
 }
 
+/**Indica si un prop se debe de ignorar según el valor del prop (que no sea promesa ni observable) o según la configuración (si el usuario indicó ignorar ese prop) */
 function shouldIgnore<TProps, K extends keyof TProps>(x: RxfyScalar<TProps[K]>, key: K, options: ComponentToRxOptions<TProps> | undefined): boolean {
     const ignore = getIgnore<TProps>(key, options);
-    const prom = isPromise(x);
+    const prom = isPromiseLike(x);
     const obs = isObservable(x);
     return (!obs && !prom) || (prom && ignore.promise) || (obs && ignore.observable);
 }
@@ -64,7 +65,7 @@ function allPropsIgnore<TProps>(props: Rxfy<TProps>, options: ComponentToRxOptio
     return all(allProps, x => shouldIgnore(x.value, x.key, options));
 }
 
-function renderComponentToRx<TProps>(
+export function renderComponentToRx<TProps>(
     props: rx.Observable<Rxfy<TProps>>,
     Component: ReactComponent<TProps>,
     Loading: ReactComponent<Partial<TProps>>,
@@ -203,7 +204,7 @@ function renderComponentToRx<TProps>(
         return r;
     }
 
-    function propValuesMapSwich(obs: rx.Observable<PropValuesRx>) {
+    function propValuesMapSwich(obs: rx.Observable<PropValuesRx>): rx.Observable<PropValues> {
         let last: PropValuesRx = {} as any;
         let lastCombine: PropValues = {} as any;
         let subscriptions: { [K in keyof TProps]: rx.Subscription } = {} as any;
@@ -256,8 +257,8 @@ function renderComponentToRx<TProps>(
 
     const propsAntesSwitch =
         props
-            //Convertir todos los props a observable, asi ya no andamos manejando también promesas y valores
-            //el objeto resultante indica si se debe de ignorar, ignorar significa pasar el valor tal cual al componente final
+            //Convertir todos los props a observable, asi ya no andamos manejando también promesas y valores sincronos.
+            //El objeto resultante indica si se debe de ignorar, ignorar significa pasar el valor tal cual al componente final
             .map(props => mapObject(props, (value, key) => toObservableIgnore(value, key)))
             //Convertir todos los props a un observable del prop que se le debe de pasar, considerando los ignores del mapeo anterior
             .map(props => mapObject(props, prop =>
@@ -273,21 +274,13 @@ function renderComponentToRx<TProps>(
     const propsValues = toPopValuesObs(propsAntesSwitch);
     const propMapSwich = propValuesMapSwich(propsValues);
 
-    // const propMapSwichOld = propsValues
-    //   //Convertir los props de observables a un observable de los props 
-    //   .map(props => objRxToRxObj(props) as any as rx.Observable<PropValues>)
-    //   .switch()
-    // ;
-
-    //propMapSwichOld.subscribe(x => console.log(x));
-
     const propsObs =
         //En este punto tenemos un observable de objetos, donde cada propiedad es un 
         //observable de PropValue, y el prop value envuelve al valor del prop, ademas de a su valor inicial, si esta cargando/con error o no
 
         //Convertir los props de observables a un observable de los props 
         propMapSwich
-            //Tenemos que agarrar el ultimo valor del prop antes de que iniciara a cargar
+            //Tenemos que agarrar el ultimo valor del prop antes de iniciar a cargar
             .scan((acc, value) => mapObject(value, (value, key) => {
 
                 const ret = {
@@ -307,7 +300,8 @@ function renderComponentToRx<TProps>(
         cargando: boolean,
         first: boolean
     };
-    const viewObs =
+
+    const viewObsSinDeb =
         propsObs
             //Determinar si el componente tiene error y si esta cargando y extraer los props
             .map(x => ({
@@ -321,10 +315,10 @@ function renderComponentToRx<TProps>(
             }), {
                 first: null,
             } as any)
-            .map(x => x as ViewPropsObs)
-            //Si se pone en cargando se espera cierto tiempo, esto hace que no se muestre el icono de cargando inmediatamente
-            .debounce(x => (x.cargando && !x.first) ? rx.Observable.timer(loadingDelayMs) : Promise.resolve(0))
-            //Asignar las propiedades que estan definidas como "loading"
+            .map(x => x as ViewPropsObs);
+
+    const viewObs =
+        debounceSync(viewObsSinDeb, x => (x.cargando && !x.first) ? delay(loadingDelayMs) : syncResolve())
             .map(x => ({
                 ...x,
                 props: {
@@ -350,7 +344,7 @@ function renderComponentToRx<TProps>(
 }
 
 /**Check if a value is a JSX.Element */
-function isJsxElement(x: any): x is JSX.Element {
+export function isJsxElement(x: any): x is JSX.Element {
     return React.isValidElement(x);
 }
 
@@ -388,8 +382,8 @@ export function componentToRx<TProps>(
     const RxComp = propsToRx(render);
     return class ComponentToRx extends React.PureComponent<Rxfy<TProps>> {
         render() {
-            const passThru = allPropsIgnore(this.props, options);
-            return passThru ? <Component {...this.props} /> : <RxComp {... this.props} />
+            return <RxComp {... this.props} />
         }
     };
 }
+

@@ -159,7 +159,7 @@ class SimpleText extends React.PureComponent<{ text: string }> {
         );
     }
 }
-const SimpleTextRx = componentToRx(SimpleText, <span>cargando...</span>, undefined);
+const SimpleTextRx = componentToRx(SimpleText, <span>cargando...</span>, undefined, undefined, 1000);
 
 class NeastedComponent extends React.PureComponent<{ text: string }> {
     render() {
@@ -178,7 +178,7 @@ class NeastedComponent extends React.PureComponent<{ text: string }> {
 const NeastedComponentRx = componentToRx(NeastedComponent, <span>cargando neasted...</span>, undefined, undefined);
 
 
-export class App extends React.Component<{}, { prom: Promise<number>, promValue: number, cambiar: number, promValueProm: Promise<number> }> {
+export class App extends React.Component<{}, { prom: Promise<string>, promValue: number, cambiar: number, promValueProm: Promise<number> }> {
     private timerA = rx.Observable.timer(0, 1000);
     private timerB = rx.Observable.timer(0, 800);
     private timerC = rx.Observable.timer(0, 100);
@@ -196,7 +196,7 @@ export class App extends React.Component<{}, { prom: Promise<number>, promValue:
     constructor(props) {
         super(props);
         this.state = {
-            prom: delay(300).then(x => 12),
+            prom: delay(4000).then(x => "Hola a todos"),
             promValue: 12,
             cambiar: 0,
             promValueProm: delay(5000).then(x => 1)
@@ -220,70 +220,17 @@ export class App extends React.Component<{}, { prom: Promise<number>, promValue:
 
 
     prom2 =  delay(1000).then(x => <div>Hola a todos</div>);
-    obs2 = rx.Observable.fromPromise(this.prom2);
-
+    obs2 = rx.Observable.from([<div>Hola a todos</div>]);
+        
     render() {
-        const test = 0;
         return (
             <div>
-
-                <RxToReact value={this.obs2} />
-
-
-                <MyCompRx a={this.timerA} b={this.timerB} c={33} />
-
-                <button onClick={
-                    () => {
-                        this.setState(prev => ({
-                            promValue: prev.promValue + 1,
-                            promValueProm: delay(10000).then(x => prev.promValue + 1)
-                        }))
-                    }
-                }>
-                    Cambiar prom value prom slow
+                <SimpleTextRx text={this.state.prom} />
+                <button onClick={() => this.setState({
+                    prom: delay(4000).then(x => "Hola")
+                })} >
+                    Cambiar
                 </button>
-
-                <button onClick={
-                    () => {
-                        this.setState(prev => ({
-                            promValue: prev.promValue + 10,
-                            promValueProm: delay(100).then(x => prev.promValue + 10)
-                        }))
-                    }
-                }>
-                    Cambiar prom value prom fast
-                </button>
-                <ComponenteConStateRx value={this.state.promValueProm} />
-                <PromLoadingCompRx a={this.state.prom} b={this.state.promValue} onChange={x => {
-                    this.setState({
-                        promValue: x,
-                        prom: delay(500).then(() => x)
-                    });
-                }} />
-
-                <NeastedComponentRx text={promObs2} />
-
-                <TextoRx texto={this.cargando} />
-                <TextoRx texto={this.inmediato} />
-                <TextoRx texto={this.error} />
-                
-                <MyComp2Rx
-                    a={this.timerA.map(x => "timer mapeado a: " + x)}
-                    b={this.promesa}
-                    c={this.promesa.then(x => delay(2000)).then(x => "Otra promesa")}
-                    d={this.timerC.map(x => "timer otro mapeo a: " + x)}
-                    e={"Cadena establecida directamente"}
-                />
-                
-                <TextoRxInicial texto={this.promesa} />
-                
-                <OtraPruebaRx
-                    d={this.timerC.map(x => "timer otro mapeo 2 a: " + x)}
-                    e={this.timerA.map(x => "timer otro mapeo 3 a: " + x)} />
-                    
-                <LoadingComponentRx texto={delay(4000).then(x => "Se terminó la promesa")} />
-                <LoadingComponentRx texto={delay(4000).then(x => "Siempre cargando")} loading={true} />
-                <LoadingComponentRx texto={delay(4000).then(x => "Nunca cargando")} loading={false} />
             </div>
         )
     }

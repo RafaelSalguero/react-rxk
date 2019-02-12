@@ -4,8 +4,13 @@ export interface PropError {
     error: any;
 }
 
+export interface ErrorViewProps {
+    errores: PropError[];
+}
+
+
 /**Vista por default para los errores de componentToRx */
-export class ErrorView extends React.PureComponent<{ errores: PropError[] }> {
+export class ErrorView extends React.PureComponent<ErrorViewProps> {
     render() {
         return (
             <span style={{ color: "red" }}>
