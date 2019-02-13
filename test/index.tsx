@@ -148,6 +148,10 @@ const promObs1 = rx.Observable.fromPromise(delay(1000).then(x => "Promesa 1"));
 const promObs2 = promObs1.map(x => "Map: " + x);
 
 class SimpleText extends React.PureComponent<{ text: string, loading?: boolean }> {
+    componentWillMount() {
+        console.log("will mount");
+    }
+
     render() {
         return (
             <div>
@@ -178,7 +182,7 @@ class NeastedComponent extends React.PureComponent<{ text: string }> {
 
 const NeastedComponentRx = componentToRx(NeastedComponent, <span>cargando neasted...</span>, undefined, undefined);
 
-
+let contador = 0;
 export class App extends React.Component<{}, { prom: Promise<string> | string, promValue: number, cambiar: number, promValueProm: Promise<number> }> {
     private timerA = rx.Observable.timer(0, 1000);
     private timerB = rx.Observable.timer(0, 800);
@@ -217,12 +221,19 @@ export class App extends React.Component<{}, { prom: Promise<string> | string, p
 
     prom2 =  delay(1000).then(x => <div>Hola a todos</div>);
     obs2 = rx.Observable.from([<div>Hola a todos</div>]);
+
+    onClickSync = () => {
+        this.setState({
+            prom:  "otro state sync" + contador++
+        });
+    }
+
     render() {
         return (
             <div>
                 <Rx 
                     render={SimpleText}
-                    loading={cargando}
+                    loading={<span>cargando...</span>}
                     options={{
                         text: {
                             initial: "Hey"
@@ -234,12 +245,23 @@ export class App extends React.Component<{}, { prom: Promise<string> | string, p
                     props={{
                         text: this.state.prom
                     }} 
+                    loadingTimeoutMs={1000}
                 />
 
                 <button onClick={() => this.setState({
-                    prom: this.state.prom + "x"
+                    prom: delay(1000).then(x => "otro state async" + Math.random())
                 })} >
-                    Cambiar
+                    Async slow
+                </button>
+
+                <button onClick={() => this.setState({
+                    prom: delay(200).then(x => "otro state async" + Math.random())
+                })} >
+                    Async fast
+                </button>
+
+                <button onClick={this.onClickSync} >
+                    Sync
                 </button>
             </div>
         )

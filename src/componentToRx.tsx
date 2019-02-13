@@ -61,7 +61,7 @@ function shouldIgnore<TProps, K extends keyof TProps>(x: RxfyScalar<TProps[K]>, 
 }
 
 /**Devuelve true si todas las propiedades pasan como "ignore", es decir, que se deben de pasar tal cual al componente dibujado */
-function allPropsIgnore<TProps>(props: Rxfy<TProps>, options: ComponentToRxOptions<TProps> | undefined): boolean {
+export function allPropsIgnore<TProps>(props: Rxfy<TProps>, options: ComponentToRxOptions<TProps> | undefined): boolean {
     const allProps = enumObject(props);
     return all(allProps, x => shouldIgnore(x.value, x.key, options));
 }
@@ -214,7 +214,7 @@ export function renderComponentToRx<TProps extends { [k: string]: any }>(
         let lastCombine: PropValues = {} as any;
         let subscriptions: { [K in keyof TProps]: rx.Subscription } = {} as any;
         const ret = new rx.Observable<PropValues>(observer => {
-            obs.subscribe((current: PropValuesRx) => {
+           const ret = obs.subscribe((current: PropValuesRx) => {
                 const diff = shallowDiff(current, last);
                 const diffKeys = enumObject(diff).map(x => x.key);
                 //Propiedades de las cuales se hay de desubscribir
@@ -253,6 +253,8 @@ export function renderComponentToRx<TProps extends { [k: string]: any }>(
                     subscriptions[k] = newSub;
                 }
             });
+
+            return ret;
         });
 
         //ret.subscribe(x => console.log(x));
@@ -306,7 +308,7 @@ export function renderComponentToRx<TProps extends { [k: string]: any }>(
         first: boolean
     };
 
-    const viewObsSinDeb =
+    const _viewObsSinDeb =
         propsObs
             //Determinar si el componente tiene error y si esta cargando y extraer los props
             .map(x => ({
@@ -320,10 +322,20 @@ export function renderComponentToRx<TProps extends { [k: string]: any }>(
             }), {
                 first: null,
             } as any)
-            .map(x => x as ViewPropsObs);
+            .map(x => x as ViewPropsObs)
+            .do(x => console.log(JSON.stringify(x)))
+            ;
 
+    const viewObsSinDeb = new rx.Observable<ViewPropsObs> (observer => {
+        const ret = _viewObsSinDeb.subscribe(observer);
+        console.log("Subscribed");
+        return ret;
+    })
     const viewObs =
-        debounceSync(viewObsSinDeb, x => (x.cargando && !x.first) ? delay(loadingDelayMs) : syncResolve())
+        debounceSync(viewObsSinDeb, x =>{
+            return delay(loadingDelayMs);
+            //return (x.cargando && !x.first) ? delay(loadingDelayMs) : syncResolve();
+        } )
             .map(x => ({
                 ...x,
                 props: {

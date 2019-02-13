@@ -2,8 +2,8 @@ import * as React from "react";
 import * as rx from "rxjs";
 import { Rxfy } from "./types";
 import { PropError, ErrorView, ErrorViewProps } from "./error";
-import { renderComponentToRx, ComponentToRxOptions, isJsxElement } from "./componentToRx";
-import { createSelector, shallowEquals, enumObject, any } from "keautils";
+import { renderComponentToRx, ComponentToRxOptions, isJsxElement, allPropsIgnore } from "./componentToRx";
+import { createSelector, shallowEquals, enumObject, any, deepEquals, createDeepSelector } from "keautils";
 import { PropsToRx } from "./propsToRx";
 
 
@@ -16,7 +16,7 @@ export interface RxProps<T> {
     loadingTimeoutMs?: number;
 }
 
-const defaultLoadingTimeout = 300;
+const defaultLoadingTimeout = 500;
 
 /**
  * Dibuja un component síncrono pasando props que aceptan promesas y observables.
@@ -25,7 +25,8 @@ export class Rx<T> extends React.Component<RxProps<T>> {
     comp = (x: RxProps<T>) => x.render;
     loading = (x: RxProps<T>) => x.loading;
     error = (x: RxProps<T>) => x.error;
-    options = (x: RxProps<T>) => x.options;
+    optionsOrig = (x: RxProps<T>) => x.options;
+    options = createDeepSelector(this.optionsOrig, x => x);
     loadingTimeoutMs = (x: RxProps<T>) => x.loadingTimeoutMs;
 
     loadingEff = createSelector(this.loading, this.comp, (Loading, Component): React.ComponentType<Partial<T>> =>
@@ -46,7 +47,7 @@ export class Rx<T> extends React.Component<RxProps<T>> {
             error: curr.error != nextProps.error,
             loading: curr.loading != nextProps.loading,
             loadingTimeoutMs: curr.loadingTimeoutMs != nextProps.loadingTimeoutMs,
-            options: curr.options != nextProps.options,
+            options:  !deepEquals( curr.options,  nextProps.options),
             render: curr.render != nextProps.render,
             props: !shallowEquals(curr.props, nextProps.props)
         }
@@ -56,20 +57,29 @@ export class Rx<T> extends React.Component<RxProps<T>> {
     }
 
     obsRender = createSelector(this.comp, this.loadingEff, this.errorEff, this.options, this.loadingTimeoutMs,
-        (comp, loading, error, options, loadingTimeoutMs) =>
-            (props: rx.Observable<Rxfy<T>>) => renderComponentToRx(
+        (comp, loading, error, options, loadingTimeoutMs) => {
+            return (props: rx.Observable<Rxfy<T>>) => renderComponentToRx(
                 props,
                 comp,
                 loading,
                 error,
                 options,
                 loadingTimeoutMs || defaultLoadingTimeout
-            )
+            );
+        }
     );
 
+
+    
     render() {
         const render = this.obsRender(this.props);
-        return <PropsToRx render={render} props={this.props.props} />;
+        const passThru = allPropsIgnore(this.props.props, this.props.options);
+        const syncRender = passThru ? (this.props.render  as React.ComponentType<Rxfy<T>>) : undefined;
+        return <PropsToRx<Rxfy<T>> 
+                    render={render} 
+                    props={this.props.props}
+                    syncRender={syncRender}
+                />;
     }
 }
 

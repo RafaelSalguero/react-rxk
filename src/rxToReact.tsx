@@ -1,15 +1,17 @@
 import * as React from "react";
 import * as rx from "rxjs";
+import { isObservable } from "keautils";
 
 const x = rx.Observable.from([]);
 x.subscribe(next => console.log(next));
 export type Element = JSX.Element | null | false;
 export interface RxToReactProps {
-    value?: rx.Observable<Element>;
+    value?: rx.Observable<React.ReactNode> | React.ReactNode;
 }
 export interface RxToReactState {
-    value: Element;
-    observable: rx.Observable<Element> | undefined;
+    value: React.ReactNode;
+    observable: rx.Observable<React.ReactNode> | undefined;
+    oldValue: rx.Observable<React.ReactNode> | React.ReactNode;
     subscription: rx.Subscription | undefined;
     onNext: (x: Element) => void;
     setted: boolean;
@@ -24,6 +26,7 @@ export class RxToReact extends React.PureComponent<RxToReactProps, RxToReactStat
         this.state = {
             value: null,
             observable: undefined,
+            oldValue: undefined,
             subscription: undefined,
             onNext: this.onNext,
             setted: false
@@ -44,12 +47,14 @@ export class RxToReact extends React.PureComponent<RxToReactProps, RxToReactStat
     }
 
     static getDerivedStateFromProps(nextProps: RxToReactProps, prevState: RxToReactState): RxToReactState {
-        if (nextProps.value != prevState.observable) {
+        if (nextProps.value != prevState.oldValue) {
             //Quitar la subscripción anterior
             if (prevState.subscription != null) {
                 prevState.subscription.unsubscribe();
             }
-            if (nextProps.value != null) {
+
+            const nextPropsVal = nextProps.value;
+            if (nextPropsVal != null && isObservable(nextPropsVal)) {
                 let siguienteValor: Element | undefined = undefined;
                 //Esta variable determina si el onNext se llamo después del subscribe, si es true, significa que el onNext se llamo en el mismo instante que la llamada del subscribe
                 let siguienteValorInstantaneo = true;
@@ -61,18 +66,20 @@ export class RxToReact extends React.PureComponent<RxToReactProps, RxToReactStat
                         prevState.onNext(next);
                     }
                 }
-                const newSubscription = nextProps.value.subscribe(onNext);
+                const newSubscription = nextPropsVal.subscribe(onNext);
                 siguienteValorInstantaneo = false;
                 return {
                     ...prevState,
+                    oldValue: nextPropsVal,
                     value: (siguienteValor != undefined) ? siguienteValor : prevState.value,
                     subscription: newSubscription,
-                    observable: nextProps.value,
+                    observable: nextPropsVal,
                 };
             } else {
                 return {
                     ...prevState,
-                    value: null,
+                    value: nextPropsVal,
+                    oldValue: nextPropsVal,
                     observable: undefined,
                     subscription: undefined
                 };
@@ -89,11 +96,13 @@ export class RxToReact extends React.PureComponent<RxToReactProps, RxToReactStat
 
     render() {
         this.firstRender = true;
-        if(this.state.setted) {
-			console.log((this.state as any).value.type.name);
-			console.log((this.state as any).value.props);
+      
+        const val = this.props.value;
+        //Si el valor que nos pasan es un ReactElement, lo dibujamos directamente:
+        if(isObservable(val)){
+            return this.state.value;
+        } else {
+            return val;
         }
-        
-        return this.state.value;
     }
 }
