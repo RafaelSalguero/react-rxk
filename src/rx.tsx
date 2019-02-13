@@ -5,6 +5,7 @@ import { PropError, ErrorView, ErrorViewProps } from "./error";
 import { renderComponentToRx, ComponentToRxOptions, isJsxElement, allPropsIgnore } from "./componentToRx";
 import { createSelector, shallowEquals, enumObject, any, deepEquals, createDeepSelector } from "keautils";
 import { PropsToRx } from "./propsToRx";
+import { createSelectorCreator, defaultMemoize } from "reselect";
 
 
 export interface RxProps<T> {
@@ -18,13 +19,40 @@ export interface RxProps<T> {
 
 const defaultLoadingTimeout = 500;
 
+/**Devuelve true si un elemento JSX es igual a otro */
+function jsxEquals(a: JSX.Element, b: JSX.Element) {
+    return (
+        a.key === b.key &&
+        a.type === b.type &&
+        shallowEquals(a.props, b.props)
+    );
+}
+
+type JSXOrClass = React.ComponentType<any> | JSX.Element | undefined
+function compareCompType(a: JSXOrClass, b: JSXOrClass) {
+    if (isJsxElement(a) || isJsxElement(b)) {
+        //Uno si y otro no es JSX.element
+        if (!isJsxElement(a) || !isJsxElement(b))
+            return false;
+
+        return jsxEquals(a, b);
+    }
+    return a === b;
+}
+
+const createSelectorJsx = createSelectorCreator(defaultMemoize as any, compareCompType as any);
+
 /**
  * Dibuja un component síncrono pasando props que aceptan promesas y observables.
  */
 export class Rx<T> extends React.Component<RxProps<T>> {
     comp = (x: RxProps<T>) => x.render;
-    loading = (x: RxProps<T>) => x.loading;
-    error = (x: RxProps<T>) => x.error;
+    loadingOrig = (x: RxProps<T>) => x.loading;
+    loading = createSelectorJsx(this.loadingOrig, x => x);
+
+    errorOrig = (x: RxProps<T>) => x.error;
+    error = createSelectorJsx(this.errorOrig, x => x);
+
     optionsOrig = (x: RxProps<T>) => x.options;
     options = createDeepSelector(this.optionsOrig, x => x);
     loadingTimeoutMs = (x: RxProps<T>) => x.loadingTimeoutMs;
@@ -44,10 +72,10 @@ export class Rx<T> extends React.Component<RxProps<T>> {
         type Comparasiones = Required<{ [k in keyof RxProps<any>]: boolean }>;
         const curr = this.props;
         const comps: Comparasiones = {
-            error: curr.error != nextProps.error,
-            loading: curr.loading != nextProps.loading,
+            error: !compareCompType(curr.error, nextProps.error),
+            loading: !compareCompType(curr.loading, nextProps.loading),
             loadingTimeoutMs: curr.loadingTimeoutMs != nextProps.loadingTimeoutMs,
-            options:  !deepEquals( curr.options,  nextProps.options),
+            options: !deepEquals(curr.options, nextProps.options),
             render: curr.render != nextProps.render,
             props: !shallowEquals(curr.props, nextProps.props)
         }
@@ -70,16 +98,16 @@ export class Rx<T> extends React.Component<RxProps<T>> {
     );
 
 
-    
+
     render() {
         const render = this.obsRender(this.props);
         const passThru = allPropsIgnore(this.props.props, this.props.options);
-        const syncRender = passThru ? (this.props.render  as React.ComponentType<Rxfy<T>>) : undefined;
-        return <PropsToRx<Rxfy<T>> 
-                    render={render} 
-                    props={this.props.props}
-                    syncRender={syncRender}
-                />;
+        const syncRender = passThru ? (this.props.render as React.ComponentType<Rxfy<T>>) : undefined;
+        return <PropsToRx<Rxfy<T>>
+            render={render}
+            props={this.props.props}
+            syncRender={syncRender}
+        />;
     }
 }
 

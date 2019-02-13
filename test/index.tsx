@@ -219,33 +219,32 @@ export class App extends React.Component<{}, { prom: Promise<string> | string, p
     private jTimer2 = rx.Observable.timer(0, 1).map(x => <span>{x}</span>);
 
 
-    prom2 =  delay(1000).then(x => <div>Hola a todos</div>);
+    prom2 = delay(1000).then(x => <div>Hola a todos</div>);
     obs2 = rx.Observable.from([<div>Hola a todos</div>]);
 
     onClickSync = () => {
         this.setState({
-            prom:  "otro state sync" + contador++
+            prom: "otro state sync" + contador++
         });
     }
 
     render() {
         return (
             <div>
-                <Rx 
+                <Rx
                     render={SimpleText}
                     loading={<span>cargando...</span>}
                     options={{
                         text: {
                             initial: "Hey"
-                        }, 
+                        },
                         loading: {
                             loading: true
                         }
                     }}
                     props={{
                         text: this.state.prom
-                    }} 
-                    loadingTimeoutMs={1000}
+                    }}
                 />
 
                 <button onClick={() => this.setState({

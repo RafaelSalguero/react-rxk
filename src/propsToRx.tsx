@@ -73,6 +73,6 @@ export class PropsToRx<T> extends React.PureComponent<Props<T>, State<T>> {
     }
 
     render() {
-        return this.compRx(this.props);
+        return this.comp(this.props);
     }
 }

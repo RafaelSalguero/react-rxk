@@ -2,8 +2,6 @@ import * as React from "react";
 import * as rx from "rxjs";
 import { isObservable } from "keautils";
 
-const x = rx.Observable.from([]);
-x.subscribe(next => console.log(next));
 export type Element = JSX.Element | null | false;
 export interface RxToReactProps {
     value?: rx.Observable<React.ReactNode> | React.ReactNode;
@@ -75,6 +73,7 @@ export class RxToReact extends React.PureComponent<RxToReactProps, RxToReactStat
                     subscription: newSubscription,
                     observable: nextPropsVal,
                 };
+                return null as any;
             } else {
                 return {
                     ...prevState,
@@ -100,9 +99,9 @@ export class RxToReact extends React.PureComponent<RxToReactProps, RxToReactStat
         const val = this.props.value;
         //Si el valor que nos pasan es un ReactElement, lo dibujamos directamente:
         if(isObservable(val)){
-            return this.state.value;
+            return this.state.value || null;
         } else {
-            return val;
+            return val || null;
         }
     }
 }
