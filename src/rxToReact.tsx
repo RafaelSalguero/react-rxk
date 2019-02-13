@@ -12,6 +12,7 @@ export interface RxToReactState {
     observable: rx.Observable<Element> | undefined;
     subscription: rx.Subscription | undefined;
     onNext: (x: Element) => void;
+    setted: boolean;
 }
 
 /**
@@ -24,16 +25,17 @@ export class RxToReact extends React.PureComponent<RxToReactProps, RxToReactStat
             value: null,
             observable: undefined,
             subscription: undefined,
-            onNext: this.onNext
+            onNext: this.onNext,
+            setted: false
         };
     }
 
     firstRender: boolean = false;
     onNext = (x: Element) => {
         if (this.firstRender) {
-            console.log("Set State");
             this.setState({
-                value: x
+                value: x,
+                setted: true
             });
         } else {
             this.state = { ... this.state, value: x };
