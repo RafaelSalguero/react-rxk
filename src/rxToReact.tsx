@@ -33,6 +33,7 @@ export class RxToReact extends React.PureComponent<RxToReactProps, RxToReactStat
     firstRender: boolean = false;
     onNext = (x: Element) => {
         if (this.firstRender) {
+            console.log("SetState");
             this.setState({
                 value: x,
                 setted: true
@@ -88,6 +89,11 @@ export class RxToReact extends React.PureComponent<RxToReactProps, RxToReactStat
 
     render() {
         this.firstRender = true;
+        if(this.state.setted) {
+			console.log((this.state as any).value.type.name);
+			console.log((this.state as any).value.props);
+        }
+        
         return this.state.value;
     }
 }

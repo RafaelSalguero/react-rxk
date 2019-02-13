@@ -147,7 +147,7 @@ const PromLoadingCompRx = componentToRx(PromLoadingComponent, undefined, undefin
 const promObs1 = rx.Observable.fromPromise(delay(1000).then(x => "Promesa 1"));
 const promObs2 = promObs1.map(x => "Map: " + x);
 
-class SimpleText extends React.PureComponent<{ text: string }> {
+class SimpleText extends React.PureComponent<{ text: string, loading?: boolean }> {
     render() {
         return (
             <div>
@@ -179,7 +179,7 @@ class NeastedComponent extends React.PureComponent<{ text: string }> {
 const NeastedComponentRx = componentToRx(NeastedComponent, <span>cargando neasted...</span>, undefined, undefined);
 
 
-export class App extends React.Component<{}, { prom: Promise<string>, promValue: number, cambiar: number, promValueProm: Promise<number> }> {
+export class App extends React.Component<{}, { prom: Promise<string> | string, promValue: number, cambiar: number, promValueProm: Promise<number> }> {
     private timerA = rx.Observable.timer(0, 1000);
     private timerB = rx.Observable.timer(0, 800);
     private timerC = rx.Observable.timer(0, 100);
@@ -197,7 +197,7 @@ export class App extends React.Component<{}, { prom: Promise<string>, promValue:
     constructor(props) {
         super(props);
         this.state = {
-            prom: delay(4000).then(x => "Hola a todos"),
+            prom: "Hola hola",
             promValue: 12,
             cambiar: 0,
             promValueProm: delay(5000).then(x => 1)
@@ -223,13 +223,21 @@ export class App extends React.Component<{}, { prom: Promise<string>, promValue:
                 <Rx 
                     render={SimpleText}
                     loading={cargando}
+                    options={{
+                        text: {
+                            initial: "Hey"
+                        }, 
+                        loading: {
+                            loading: true
+                        }
+                    }}
                     props={{
                         text: this.state.prom
                     }} 
                 />
 
                 <button onClick={() => this.setState({
-                    prom: delay(4000).then(x => "Hola")
+                    prom: this.state.prom + "x"
                 })} >
                     Cambiar
                 </button>
