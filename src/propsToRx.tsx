@@ -2,6 +2,7 @@ import * as React from "react";
 import * as rx from "rxjs";
 import { shallowEquals, createSelector, createDeepSelector } from "keautils";
 import { RxToReact } from "./rxToReact";
+import { createSelectorCreator, defaultMemoize } from "reselect";
 
 export type Element = JSX.Element | null | false;
 
@@ -16,6 +17,8 @@ interface State<T> {
     onNextProps: (x: T) => void;
     lastProps: T;
 }
+
+const createShallowSelector= createSelectorCreator(defaultMemoize, shallowEquals as any);
 
 /**
  * Dibuja una función render que toma un observable de props y devuelve un observable de elementos.
@@ -48,7 +51,7 @@ export class PropsToRx<T> extends React.PureComponent<Props<T>, State<T>> {
     compProps = (x: Props<T>) => x.props;
     syncRx = (x: Props<T>) => x.syncRender;
 
-    compSync = createDeepSelector(this.compProps, this.syncRx, (props, SyncRx) => {
+    compSync = createShallowSelector(this.compProps, this.syncRx, (props, SyncRx) => {
         return (SyncRx != null) ? <SyncRx {...props} /> : undefined;
     });
 
