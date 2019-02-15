@@ -1,6 +1,6 @@
 import * as React from "react";
 import * as rx from "rxjs";
-import { shallowEquals, createSelector, createDeepSelector } from "keautils";
+import { shallowEquals, createSelector } from "keautils";
 import { RxToReact } from "./rxToReact";
 import { createSelectorCreator, defaultMemoize } from "reselect";
 
