@@ -15,6 +15,8 @@ export interface RxProps<T> {
     error?: React.ComponentType<ErrorViewProps> | JSX.Element;
     options?: ComponentToRxOptions<T>;
     loadingTimeoutMs?: number;
+    /**Símbolo que indica que el valor se esta cargando, si este valor es emitido por un observable del props se considerará que el componente esta cargando */
+    loadingSymbol?: symbol;
 }
 
 const defaultLoadingTimeout = 500;
@@ -41,6 +43,7 @@ function compareCompType(a: JSXOrClass, b: JSXOrClass) {
 }
 
 const createSelectorJsx = createSelectorCreator(defaultMemoize as any, compareCompType as any);
+const defaultLoadingSymbol = Symbol("defaultLoadingSymbol");
 
 /**
  * Dibuja un component síncrono pasando props que aceptan promesas y observables.
@@ -56,6 +59,7 @@ export class Rx<T> extends React.Component<RxProps<T>> {
     optionsOrig = (x: RxProps<T>) => x.options;
     options = createDeepSelector(this.optionsOrig, x => x);
     loadingTimeoutMs = (x: RxProps<T>) => x.loadingTimeoutMs;
+    loadingSymbol = (x: RxProps<T>) => x.loadingSymbol;
 
     loadingEff = createSelector(this.loading, this.comp, (Loading, Component): React.ComponentType<Partial<T>> =>
         isJsxElement(Loading) ? (() => Loading) :
@@ -77,22 +81,24 @@ export class Rx<T> extends React.Component<RxProps<T>> {
             loadingTimeoutMs: curr.loadingTimeoutMs != nextProps.loadingTimeoutMs,
             options: !deepEquals(curr.options, nextProps.options),
             render: curr.render != nextProps.render,
-            props: !shallowEquals(curr.props, nextProps.props)
+            props: !shallowEquals(curr.props, nextProps.props),
+            loadingSymbol: curr.loadingSymbol != nextProps.loadingSymbol
         }
 
         const anyDiff = any(enumObject(comps).map(x => x.value), x => x == true);
         return anyDiff;
     }
 
-    obsRender = createSelector(this.comp, this.loadingEff, this.errorEff, this.options, this.loadingTimeoutMs,
-        (comp, loading, error, options, loadingTimeoutMs) => {
+    obsRender = createSelector(this.comp, this.loadingEff, this.errorEff, this.options, this.loadingTimeoutMs, this.loadingSymbol,
+        (comp, loading, error, options, loadingTimeoutMs, loadingSymbol) => {
             return (props: rx.Observable<Rxfy<T>>) => renderComponentToRx(
                 props,
                 comp,
                 loading,
                 error,
                 options,
-                loadingTimeoutMs || defaultLoadingTimeout
+                loadingTimeoutMs || defaultLoadingTimeout,
+                loadingSymbol || defaultLoadingSymbol
             );
         }
     );
