@@ -69,9 +69,9 @@ export class Rx<T> extends React.Component<RxProps<T>> {
 
     shouldComponentUpdate(nextProps: RxProps<T>) {
         //Compara en forma "shallow" a todos los props excepto al "prop":
-        type Comparasiones = Required<{ [k in keyof RxProps<any>]: boolean }>;
+        type Comps = Required<{ [k in keyof RxProps<any>]: boolean }>;
         const curr = this.props;
-        const comps: Comparasiones = {
+        const comps: Comps = {
             error: !compareCompType(curr.error, nextProps.error),
             loading: !compareCompType(curr.loading, nextProps.loading),
             loadingTimeoutMs: curr.loadingTimeoutMs != nextProps.loadingTimeoutMs,

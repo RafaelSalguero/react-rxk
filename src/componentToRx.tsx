@@ -1,4 +1,4 @@
-import { ReactComponent, Rxfy, RxfyScalar } from "./types";
+import { ReactComponent, Rxfy, RxfyScalar, LoadingSym } from "./types";
 import * as rx from "rxjs";
 import * as React from "react";
 import { isPromiseLike, isObservable, mapObject, nullsafe, objRxToRxObj, enumObject, any, filterObject, shallowDiff, intersect, intersectKeys, contains, setEquals, all, debounceSync, syncResolve, delay } from "keautils";
@@ -86,8 +86,6 @@ export function renderComponentToRx<TProps extends { [k: string]: any }>(
         return map as {};
     }
 
-
-
     function toObservableIgnore<K extends keyof TProps>(x: RxfyScalar<TProps[K]>, key: keyof TProps): {
         obs: rx.Observable<TProps[K]>,
         ignore: boolean,
@@ -110,17 +108,19 @@ export function renderComponentToRx<TProps extends { [k: string]: any }>(
 
     function ObsToPropValue<TKey extends keyof TProps>(obs: rx.Observable<TProps[TKey]>, key: TKey): rx.Observable<PropValue<TProps[TKey]>> {
         type T = TProps[TKey];
+        const loading = {
+            value: getInitial(key),
+            loading: true,
+            error: undefined
+        };
+
         const ret = obs
-            .map(x => ({
+            .map(x => x == LoadingSym ? loading : ({
                 value: x,
                 loading: false,
                 error: undefined
             } as PropValue<T>))
-            .startWith({
-                value: getInitial(key),
-                loading: true,
-                error: undefined
-            })
+            .startWith(loading)
             .catch(err => [{
                 value: undefined,
                 loading: false,
@@ -258,7 +258,7 @@ export function renderComponentToRx<TProps extends { [k: string]: any }>(
 
             return () => {
                 //Quitar todas las subscripciones hijas:
-                for(const k in subscriptions) {
+                for (const k in subscriptions) {
                     subscriptions[k].unsubscribe();
                 };
 
@@ -315,6 +315,7 @@ export function renderComponentToRx<TProps extends { [k: string]: any }>(
         first: boolean
     };
 
+    //Observable con los JSX sin el debounce:
     const viewObsSinDeb =
         propsObs
             //Determinar si el componente tiene error y si esta cargando y extraer los props
@@ -332,18 +333,18 @@ export function renderComponentToRx<TProps extends { [k: string]: any }>(
             .map(x => x as ViewPropsObs)
         ;
 
-    
+
     const viewObs =
         debounceSync(viewObsSinDeb, x => {
             return (x.cargando) ? delay(loadingDelayMs) : syncResolve();
         })
-        .map(x => ({
-            ...x,
-            props: {
-                ... (x.props as any),
-                ...getLoadingProps(x.cargando)
-            } as TProps
-        }))
+            .map(x => ({
+                ...x,
+                props: {
+                    ... (x.props as any),
+                    ...getLoadingProps(x.cargando)
+                } as TProps
+            }))
         ;
 
     const view =
