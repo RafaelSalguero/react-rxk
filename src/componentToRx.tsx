@@ -336,7 +336,7 @@ export function renderComponentToRx<TProps extends { [k: string]: any }>(
 
     const viewObs =
         debounceSync(viewObsSinDeb, x => {
-            return (x.cargando) ? delay(loadingDelayMs) : syncResolve();
+            return (x.cargando && loadingDelayMs > 0) ? delay(loadingDelayMs) : syncResolve();
         })
             .map(x => ({
                 ...x,
