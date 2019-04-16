@@ -97,8 +97,7 @@ export class Rx<T> extends React.Component<RxProps<T>> {
                 loading,
                 error,
                 options,
-                loadingTimeoutMs || defaultLoadingTimeout,
-                loadingSymbol || defaultLoadingSymbol
+                loadingTimeoutMs || defaultLoadingTimeout
             );
         }
     );
