@@ -1,4 +1,4 @@
-import { ReactComponent, Rxfy, RxfyScalar } from "./types";
+import { ReactComponent, Rxfy, RxfyScalar, LoadingSym } from "./types";
 import * as rx from "rxjs";
 import * as React from "react";
 import { isPromiseLike, isObservable, mapObject, nullsafe, objRxToRxObj, enumObject, any, filterObject, shallowDiff, intersect, intersectKeys, contains, setEquals, all, debounceSync, syncResolve, delay } from "keautils";
@@ -65,14 +65,14 @@ export function allPropsIgnore<TProps>(props: Rxfy<TProps>, options: ComponentTo
     const allProps = enumObject(props);
     return all(allProps, x => shouldIgnore(x.value, x.key, options));
 }
+
 export function renderComponentToRx<TProps extends { [k: string]: any }>(
     props: rx.Observable<Rxfy<TProps>>,
     Component: ReactComponent<TProps>,
     Loading: ReactComponent<Partial<TProps>>,
     Error: ReactComponent<{ errores: PropError[] }>,
     options: ComponentToRxOptions<TProps> | undefined,
-    loadingDelayMs: number,
-    loadingSymbol: symbol,
+    loadingDelayMs: number
 ): rx.Observable<JSX.Element | null> {
     type KeyofProps = Extract<keyof TProps, string>;
 
@@ -115,7 +115,7 @@ export function renderComponentToRx<TProps extends { [k: string]: any }>(
         };
 
         const ret = obs
-            .map(x => x == loadingSymbol ? loading : ({
+            .map(x => x == LoadingSym ? loading : ({
                 value: x,
                 loading: false,
                 error: undefined
