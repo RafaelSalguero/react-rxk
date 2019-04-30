@@ -2,6 +2,7 @@ import { RxToReact, PropsToRx, componentToRx, Rx } from "../src/index";
 import * as React from "react";
 import * as DOM from "react-dom";
 import * as rx from "rxjs";
+import * as rxOp from "rxjs/operators";
 import { ComponenteConStateRx } from "./state";
 
 function delay(ms: number): Promise<void> {
@@ -46,13 +47,13 @@ class MyComp2 extends React.Component<MyProps2> {
                     <br />
                     <label>c es promesa:</label>{"" + !!(this.props.c && typeof this.props.c.then == "function")}
                     <br />
-                    <label>valor de c:</label>{this.props.c && <RxToReact value={rx.Observable.fromPromise(this.props.c.then(x => <span>{x}</span>))} />}
+                    <label>valor de c:</label>{this.props.c && <RxToReact value={rx.from(this.props.c.then(x => <span>{x}</span>))} />}
                     <br />
                     <label>d es observable:</label> {"" + !!(this.props.d && typeof this.props.d.subscribe == "function")}
                     <br />
                     <label>a:</label>{this.props.a}
                     <br />
-                    <label>valor de d:</label>{this.props.d && <RxToReact value={this.props.d.map(x => <span>{x}</span>)} />}
+                    <label>valor de d:</label>{this.props.d && <RxToReact value={this.props.d.pipe(rxOp.map(x => <span>{x}</span>))} />}
                     <br />
                     <label>e:</label> {this.props.e}
                     <br />
@@ -67,7 +68,7 @@ class OtraPrueba extends React.Component<{ d: rx.Observable<string>, e: string }
     render() {
         return (
             <div>
-                {<RxToReact value={this.props.d.map(x => <span>{x}</span>)} />}
+                {<RxToReact value={this.props.d.pipe(rxOp.map(x => <span>{x}</span>))} />}
                 <br />
                 {this.props.e}
             </div>
@@ -144,8 +145,8 @@ class PromLoadingComponent extends React.PureComponent<{ a: number, b: number, l
 
 const PromLoadingCompRx = componentToRx(PromLoadingComponent, undefined, undefined, { loading: { loading: true } });
 
-const promObs1 = rx.Observable.fromPromise(delay(1000).then(x => "Promesa 1"));
-const promObs2 = promObs1.map(x => "Map: " + x);
+const promObs1 = rx.from(delay(1000).then(x => "Promesa 1"));
+const promObs2 = promObs1.pipe(rxOp.map(x => "Map: " + x));
 
 class SimpleText extends React.PureComponent<{ text: string, loading?: boolean }> {
     componentWillMount() {
@@ -184,12 +185,12 @@ const NeastedComponentRx = componentToRx(NeastedComponent, <span>cargando neaste
 
 let contador = 0;
 export class App extends React.Component<{}, { prom: Promise<string> | string, promValue: number, cambiar: number, promValueProm: Promise<number> }> {
-    private timerA = rx.Observable.timer(0, 1000);
-    private timerB = rx.Observable.timer(0, 800);
-    private timerC = rx.Observable.timer(0, 100);
+    private timerA = rx.timer(0, 1000);
+    private timerB = rx.timer(0, 800);
+    private timerC = rx.timer(0, 100);
 
-    private timerOtro = rx.Observable.timer(0, 500);
-    private cargando = rx.Observable.timer(1000).map(x => "" + x);
+    private timerOtro = rx.timer(0, 500);
+    private cargando = rx.timer(1000).pipe(rxOp.map(x => "" + x));
     private inmediato = new rx.BehaviorSubject("Hola");
     private error = new rx.Subject<string>();
 
@@ -214,13 +215,13 @@ export class App extends React.Component<{}, { prom: Promise<string> | string, p
 
     }
 
-    private jInstantaneo = rx.Observable.from([<span>Hola</span>])
-    private jTimer = rx.Observable.timer(0, 1000).map(x => <span>{x}</span>);
-    private jTimer2 = rx.Observable.timer(0, 1).map(x => <span>{x}</span>);
+    private jInstantaneo = rx.from([<span>Hola</span>])
+    private jTimer = rx.timer(0, 1000).pipe(rxOp.map(x => <span>{x}</span>));
+    private jTimer2 = rx.timer(0, 1).pipe(rxOp.map(x => <span>{x}</span>));
 
 
     prom2 = delay(1000).then(x => <div>Hola a todos</div>);
-    obs2 = rx.Observable.from([<div>Hola a todos</div>]);
+    obs2 = rx.from([<div>Hola a todos</div>]);
 
     onClickSync = () => {
         this.setState({

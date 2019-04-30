@@ -3,7 +3,7 @@ import * as rx from "rxjs";
 import * as React from "react";
 import { isPromiseLike, isObservable, mapObject, nullsafe, objRxToRxObj, enumObject, any, filterObject, shallowDiff, intersect, intersectKeys, contains, setEquals, all, debounceSync, syncResolve, delay } from "keautils";
 import { PropError, ErrorView } from "./error";
-import { filter } from "rxjs/operator/filter";
+import * as rxOp from "rxjs/operators";
 import { TopProperty } from "csstype";
 
 export interface ComponentToRxPropOptions<T> {
@@ -32,11 +32,11 @@ type UndoToObs<T> =
 /**Convierte un valor a observable */
 function toObservable<T>(x: T | Promise<T> | rx.Observable<T>): rx.Observable<T> {
     if (isPromiseLike(x)) {
-        return rx.Observable.fromPromise(x);
+        return rx.from(x);
     } else if (isObservable(x)) {
         return x;
     } else {
-        return rx.Observable.from([x]);
+        return rx.from([x]);
     }
 }
 
@@ -114,18 +114,20 @@ export function renderComponentToRx<TProps extends { [k: string]: any }>(
             error: undefined
         };
 
-        const ret = obs
-            .map(x => x == LoadingSym ? loading : ({
+        const ret = obs.pipe(
+            rxOp.map(x => x == LoadingSym ? loading : ({
                 value: x,
                 loading: false,
                 error: undefined
-            } as PropValue<T>))
-            .startWith(loading)
-            .catch(err => [{
+            } as PropValue<T>)),
+            rxOp.startWith(loading),
+            rxOp.catchError(err => [{
                 value: undefined,
                 loading: false,
                 error: err
-            } as PropValue<T>]);
+            } as PropValue<T>])
+            
+        );
 
         return ret;
     }
@@ -175,8 +177,8 @@ export function renderComponentToRx<TProps extends { [k: string]: any }>(
             propValues: PropValuesRx
         }
 
-        const r = obs
-            .scan((acc: Seed, value: PropsRx) => {
+        const r = obs.pipe(
+            rxOp.scan((acc: Seed, value: PropsRx) => {
                 const last = acc.curr;
                 const diff = shallowDiff(value, last);
                 //Sólo recalculamos el ObsToPropValue de los observables que SI cambiaron
@@ -203,8 +205,9 @@ export function renderComponentToRx<TProps extends { [k: string]: any }>(
                 last: {},
                 curr: {},
                 diff: {}
-            } as Seed)
-            .map(x => x.propValues);
+            } as Seed),
+            rxOp.map(x => x.propValues)
+        );
 
         return r;
     }
@@ -270,18 +273,18 @@ export function renderComponentToRx<TProps extends { [k: string]: any }>(
     }
 
     const propsAntesSwitch =
-        props
+        props.pipe(
             //Convertir todos los props a observable, asi ya no andamos manejando también promesas y valores sincronos.
             //El objeto resultante indica si se debe de ignorar, ignorar significa pasar el valor tal cual al componente final
-            .map(props => mapObject(props, (value, key) => toObservableIgnore(value, key)))
+            rxOp.map(props => mapObject(props, (value, key) => toObservableIgnore(value, key))),
             //Convertir todos los props a un observable del prop que se le debe de pasar, considerando los ignores del mapeo anterior
-            .map(props => mapObject(props, prop =>
+            rxOp.map(props => mapObject(props, prop =>
                 //Si es ignore, se crea un observable a partir de ese valor
-                prop.ignore ? rx.Observable.from([prop.original]) : prop.obs
+                prop.ignore ? rx.from([prop.original]) : prop.obs
             ) as {
                     [K in keyof TProps]: rx.Observable<TProps[K]>
                 })
-
+        )
         //En este punto tenemos un observable de objetos, donde cada propiedad del objeto es un observable del valor del prop
         ;
 
@@ -293,9 +296,9 @@ export function renderComponentToRx<TProps extends { [k: string]: any }>(
         //observable de PropValue, y el prop value envuelve al valor del prop, ademas de a su valor inicial, si esta cargando/con error o no
 
         //Convertir los props de observables a un observable de los props 
-        propMapSwich
+        propMapSwich.pipe(
             //Tenemos que agarrar el ultimo valor del prop antes de iniciar a cargar
-            .scan((acc, value) => mapObject(value, (value, key) => {
+            rxOp.scan((acc, value) => mapObject(value, (value, key) => {
 
                 const ret = {
                     value: value.loading ? (acc[key] && acc[key].value) : (value.value as any),
@@ -306,7 +309,7 @@ export function renderComponentToRx<TProps extends { [k: string]: any }>(
             }), {
 
             } as PropValues)
-        ;
+        );
 
     interface ViewPropsObs {
         props: TProps,
@@ -317,39 +320,40 @@ export function renderComponentToRx<TProps extends { [k: string]: any }>(
 
     //Observable con los JSX sin el debounce:
     const viewObsSinDeb =
-        propsObs
+        propsObs.pipe(
             //Determinar si el componente tiene error y si esta cargando y extraer los props
-            .map(x => ({
+            rxOp.map(x => ({
                 props: mapObject(x, y => y.value) as TProps,
                 errores: obtenerError(x),
                 cargando: estaCargando(x),
-            }))
-            .scan((acc, value) => ({
+            })),
+            rxOp.scan((acc, value) => ({
                 ...value,
                 first: (acc.first as any) == null
             }), {
                 first: null,
-            } as any)
-            .map(x => x as ViewPropsObs)
-        ;
+            } as any),
+            rxOp.map(x => x as ViewPropsObs)
+        );
 
 
     const viewObs =
-        debounceSync(viewObsSinDeb, x => {
+    viewObsSinDeb.pipe(
+        debounceSync( x => {
             return (x.cargando && loadingDelayMs > 0) ? delay(loadingDelayMs) : syncResolve();
-        })
-            .map(x => ({
+        }),
+           rxOp.map(x => ({
                 ...x,
                 props: {
                     ... (x.props as any),
                     ...getLoadingProps(x.cargando)
                 } as TProps
             }))
-        ;
+        );
 
     const view =
-        viewObs
-            .map(x => {
+        viewObs.pipe(
+            rxOp.map(x => {
                 if (x.errores.length > 0) {
                     return <Error errores={x.errores} />
                 } else if (x.cargando) {
@@ -358,7 +362,7 @@ export function renderComponentToRx<TProps extends { [k: string]: any }>(
                     return <Component {...x.props} />;
                 }
             })
-        ;
+        );
     return view;
 }
 
