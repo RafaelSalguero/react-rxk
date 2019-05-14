@@ -66,6 +66,11 @@ export function allPropsIgnore<TProps>(props: Rxfy<TProps>, options: ComponentTo
     return all(allProps, x => shouldIgnore(x.value, x.key, options));
 }
 
+
+function isReactComponentClass<P>(x: ReactComponent<P>) : x is React.ComponentClass<P> {
+    return ((x as React.ComponentClass<any>) as any).isReactComponent;
+}
+
 export function renderComponentToRx<TProps extends { [k: string]: any }>(
     props: rx.Observable<Rxfy<TProps>>,
     Component: ReactComponent<TProps>,
@@ -357,7 +362,14 @@ export function renderComponentToRx<TProps extends { [k: string]: any }>(
                 if (x.errores.length > 0) {
                     return <Error errores={x.errores} />
                 } else if (x.cargando) {
-                    return <Loading {...x.props} />;
+                    
+                    if(isReactComponentClass(Loading)) {
+                        return <Loading {...x.props} />;
+                    } else {
+                        //Si el Loading es una función, lo llama directamente, esto para no cambiar la jerarquía del arbol y en caso de que el componente de loading
+                        //sea el mismo que Component (que es un caso común) que no se pierda el state
+                        return Loading(x.props);
+                    }
                 } else {
                     return <Component {...x.props} />;
                 }
