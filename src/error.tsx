@@ -1,7 +1,7 @@
 import * as React from "react";
 export interface PropError {
-    prop: string;
-    error: any;
+    prop: string ;
+    error: string | Error;
 }
 
 export interface ErrorViewProps {
@@ -17,7 +17,10 @@ export class ErrorView extends React.PureComponent<ErrorViewProps> {
                 {
                     this.props.errores.map((x, i) =>
                         <span key={i}>
-                            Error al obtener <span style={{fontWeight: "bold"}} >{x.prop}</span>: <span style={{fontStyle: "italic"}}>{"" + x.error}</span>
+                            Error al obtener <span style={{fontWeight: "bold"}} >{x.prop}</span>: <span style={{fontStyle: "italic"}}>{
+                                typeof x.error == "string" ? x.error :
+                                x.error.message
+                                }</span>
                         </span>
                     )
                 }
