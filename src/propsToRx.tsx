@@ -2,7 +2,7 @@ import * as React from "react";
 import * as rx from "rxjs";
 import { shallowEquals, createSelector } from "keautils";
 import { RxToReact } from "./rxToReact";
-import { createSelectorCreator, defaultMemoize } from "reselect";
+import { toSelector } from "keautils/dist/selector/selector";
 
 export type Element = JSX.Element | null | false;
 
@@ -18,7 +18,6 @@ interface State<T> {
     lastProps: T;
 }
 
-const createShallowSelector= createSelectorCreator(defaultMemoize, shallowEquals as any);
 
 /**
  * Dibuja una función render que toma un observable de props y devuelve un observable de elementos.
@@ -42,23 +41,25 @@ export class PropsToRx<T> extends React.PureComponent<Props<T>, State<T>> {
         this.propsObs.next(x);
     }
 
-    renderFunc = (x: Props<T>) => x.render;
-    jsxObs = createSelector(this.renderFunc, render => {
-        return render(this.propsObs);
+    renderFunc = toSelector((x: Props<T>) => x.render);
+    jsxObs = createSelector({render: this.renderFunc}, s => {
+        return s.render(this.propsObs);
     } );
 
-    compRx = createSelector(this.jsxObs, jsxObs => <RxToReact value={jsxObs} />)
-    compProps = (x: Props<T>) => x.props;
-    syncRx = (x: Props<T>) => x.syncRender;
+    compRx = createSelector({jsxObs: this.jsxObs}, s => <RxToReact value={s.jsxObs} />)
+    compProps = toSelector((x: Props<T>) => x.props);
+    syncRx = toSelector((x: Props<T>) => x.syncRender);
 
-    compSync = createShallowSelector(this.compProps, this.syncRx, (props, SyncRx) => {
-        return (SyncRx != null) ? <SyncRx {...props} /> : undefined;
+    compSync = createSelector({props: this.compProps, SyncRx: this.syncRx}, s => {
+        return (s.SyncRx != null) ? <s.SyncRx {...s.props} /> : undefined;
+    }, {
+        comparer: shallowEquals
     });
 
     //Si el compSync esta definido, entonces hacemos un 'passThru', note que devolvemos el RxToReact con el value asignado en lugar de devolver directamente al compSync
     //Esto es para mantener la estructura del arbol de react y no perder el state del compSync
-    comp = createSelector(this.compSync, this.compRx, (compSync, compRx) => {
-        return  (compSync != null ) ? <RxToReact value={compSync} /> : compRx;
+    comp = createSelector({compSync: this.compSync, compRx: this.compRx}, s => {
+        return  (s.compSync != null ) ? <RxToReact value={s.compSync} /> : s.compRx;
     });
 
 
@@ -76,6 +77,6 @@ export class PropsToRx<T> extends React.PureComponent<Props<T>, State<T>> {
     }
 
     render() {
-        return this.comp(this.props);
+        return this.comp.call(this.props);
     }
 }

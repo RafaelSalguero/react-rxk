@@ -1,6 +1,6 @@
 {
   "name": "react-rxk",
-  "version": "4.0.2",
+  "version": "5.0.0",
   "description": "Higher order component to make any component accept RxJS observables as props",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -17,7 +17,7 @@
   "author": "Rafael Salguero Iturrios <rafaelsalgueroiturrios@gmail.com>",
   "license": "UNLICENSED",
   "dependencies": {
-    "keautils": "^3.2.22",
+    "keautils": "^4.0.4",
     "react": "^16.3.2",
     "rxjs": "^6.5.1"
   },

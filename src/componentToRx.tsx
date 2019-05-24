@@ -1,7 +1,7 @@
-import { ReactComponent, Rxfy, RxfyScalar, LoadingSym } from "./types";
+import { ReactComponent, Rxfy, RxfyScalar } from "./types";
 import * as rx from "rxjs";
 import * as React from "react";
-import { isPromiseLike, isObservable, mapObject, nullsafe, objRxToRxObj, enumObject, any, filterObject, shallowDiff, intersect, intersectKeys, contains, setEquals, all, debounceSync, syncResolve, delay } from "keautils";
+import { isPromiseLike, isObservable, mapObject, nullsafe, objRxToRxObj, enumObject, any, filterObject, shallowDiff, intersect, intersectKeys, contains, setEquals, all, debounceSync, syncResolve, delay, LoadingSym } from "keautils";
 import { PropError, ErrorView } from "./error";
 import * as rxOp from "rxjs/operators";
 import { TopProperty } from "csstype";

@@ -3,9 +3,9 @@ import * as rx from "rxjs";
 import { Rxfy } from "./types";
 import { PropError, ErrorView, ErrorViewProps } from "./error";
 import { renderComponentToRx, ComponentToRxOptions, isJsxElement, allPropsIgnore } from "./componentToRx";
-import { createSelector, shallowEquals, enumObject, any, deepEquals, createDeepSelector } from "keautils";
+import { createSelector, shallowEquals, enumObject, any, deepEquals } from "keautils";
 import { PropsToRx } from "./propsToRx";
-import { createSelectorCreator, defaultMemoize } from "reselect";
+import { toSelector } from "keautils/dist/selector/selector";
 
 
 export interface RxProps<T> {
@@ -42,33 +42,32 @@ function compareCompType(a: JSXOrClass, b: JSXOrClass) {
     return a === b;
 }
 
-const createSelectorJsx = createSelectorCreator(defaultMemoize as any, compareCompType as any);
-const defaultLoadingSymbol = Symbol("defaultLoadingSymbol");
-
 /**
  * Dibuja un component síncrono pasando props que aceptan promesas y observables.
  */
 export class Rx<T> extends React.Component<RxProps<T>> {
-    comp = (x: RxProps<T>) => x.render;
-    loadingOrig = (x: RxProps<T>) => x.loading;
-    loading = createSelectorJsx(this.loadingOrig, x => x);
+    comp = toSelector((x: RxProps<T>) => x.render);
+    loadingOrig = toSelector((x: RxProps<T>) => x.loading);
+    loading = createSelector({ x: this.loadingOrig }, s => s.x, {
+        comparer: compareCompType
+    });
 
-    errorOrig = (x: RxProps<T>) => x.error;
-    error = createSelectorJsx(this.errorOrig, x => x);
+    errorOrig = toSelector((x: RxProps<T>) => x.error);
+    error = createSelector({ x: this.errorOrig }, s => s.x, { comparer: compareCompType });
 
-    optionsOrig = (x: RxProps<T>) => x.options;
-    options = createDeepSelector(this.optionsOrig, x => x);
-    loadingTimeoutMs = (x: RxProps<T>) => x.loadingTimeoutMs;
-    loadingSymbol = (x: RxProps<T>) => x.loadingSymbol;
+    optionsOrig = toSelector((x: RxProps<T>) => x.options);
+    options = createSelector({ x: this.optionsOrig }, s => s.x, { comparer: deepEquals });
+    loadingTimeoutMs = toSelector((x: RxProps<T>) => x.loadingTimeoutMs);
+    loadingSymbol = toSelector((x: RxProps<T>) => x.loadingSymbol);
 
-    loadingEff = createSelector(this.loading, this.comp, (Loading, Component): React.ComponentType<Partial<T>> =>
-        isJsxElement(Loading) ? (() => Loading) :
-            (Loading || Component)
+    loadingEff = createSelector({ Loading: this.loading, Component: this.comp }, (s): React.ComponentType<Partial<T>> =>
+        isJsxElement(s.Loading) ? (() => s.Loading as JSX.Element) :
+            (s.Loading || s.Component)
     );
 
-    errorEff = createSelector(this.error, (Error): React.ComponentType<ErrorViewProps> =>
-        isJsxElement(Error) ? (() => Error) :
-            Error || ErrorView
+    errorEff = createSelector({ Error: this.error }, (s): React.ComponentType<ErrorViewProps> =>
+        isJsxElement(s.Error) ? (() => s.Error as JSX.Element) :
+            (s.Error || ErrorView)
     );
 
     shouldComponentUpdate(nextProps: RxProps<T>) {
@@ -89,23 +88,29 @@ export class Rx<T> extends React.Component<RxProps<T>> {
         return anyDiff;
     }
 
-    obsRender = createSelector(this.comp, this.loadingEff, this.errorEff, this.options, this.loadingTimeoutMs, this.loadingSymbol,
-        (comp, loading, error, options, loadingTimeoutMs, loadingSymbol) => {
-            return (props: rx.Observable<Rxfy<T>>) => renderComponentToRx(
-                props,
-                comp,
-                loading,
-                error,
-                options,
-                loadingTimeoutMs == null ? defaultLoadingTimeout : loadingTimeoutMs
-            );
-        }
+    obsRender = createSelector({
+        comp: this.comp,
+        loading: this.loadingEff,
+        error: this.errorEff,
+        options: this.options,
+        loadingTimeoutMs: this.loadingTimeoutMs,
+        loadingSymbol: this.loadingSymbol
+    }, s => {
+        return (props: rx.Observable<Rxfy<T>>) => renderComponentToRx(
+            props,
+            s.comp,
+            s.loading,
+            s.error,
+            s.options,
+            s.loadingTimeoutMs == null ? defaultLoadingTimeout : s.loadingTimeoutMs
+        );
+    }
     );
 
 
 
     render() {
-        const render = this.obsRender(this.props);
+        const render = this.obsRender.call(this.props);
         const passThru = allPropsIgnore(this.props.props, this.props.options);
         const syncRender = passThru ? (this.props.render as React.ComponentType<Rxfy<T>>) : undefined;
         return <PropsToRx<Rxfy<T>>
