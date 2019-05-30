@@ -68,7 +68,7 @@ export function allPropsIgnore<TProps>(props: Rxfy<TProps>, options: ComponentTo
 
 
 function isReactComponentClass<P>(x: ReactComponent<P>) : x is React.ComponentClass<P> {
-    return ((x as React.ComponentClass<any>) as any).isReactComponent;
+    return ((x as React.ComponentClass<any>) as any).prototype.isReactComponent != null;
 }
 
 export function renderComponentToRx<TProps extends { [k: string]: any }>(
