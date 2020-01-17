@@ -1,6 +1,6 @@
 import * as React from "react";
 import * as rx from "rxjs";
-import { Rxfy, ReactComponent } from "./types";
+import { Rxfy, ReactComponent } from "./utils";
 import { PropError, ErrorView, ErrorViewProps } from "./error";
 import { renderComponentToRx, ComponentToRxOptions, isJsxElement, allPropsIgnore } from "./componentToRx";
 import { createSelector, shallowEquals, enumObject, any, deepEquals } from "keautils";

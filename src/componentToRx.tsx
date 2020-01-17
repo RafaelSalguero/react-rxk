@@ -1,11 +1,11 @@
-import { ReactComponent, Rxfy, RxfyScalar } from "./types";
+import { ReactComponent, Rxfy, RxfyScalar } from "./utils";
 import * as rx from "rxjs";
 import * as React from "react";
 import { isPromiseLike, isObservable, mapObject, nullsafe, objRxToRxObj, enumObject, any, filterObject, shallowDiff, intersect, intersectKeys, contains, setEquals, all, debounceSync, syncResolve, delay, LoadingSym } from "keautils";
 import { PropError, ErrorView } from "./error";
 import * as rxOp from "rxjs/operators";
 import { TopProperty } from "csstype";
-import { createJSX } from "./react";
+import { createJSX } from "./utils";
 
 export interface ComponentToRxPropOptions<T> {
     /**Ignored observables or promises are passed as-is to the inner component */
@@ -361,7 +361,12 @@ export function renderComponentToRx<TProps extends { [k: string]: any }>(
                 if (x.errores.length > 0) {
                     return createJSX(Error, { errores: x.errores });
                 }
-                return createJSX(x.cargando ? Loading : Component , x.props );
+                if (x.cargando) {
+                    return createJSX(Loading, x.props);
+                }
+
+                return createJSX(Component, x.props);
+
             })
         );
     return view;

@@ -3,8 +3,7 @@ import * as rx from "rxjs";
 import { shallowEquals, createSelector } from "keautils";
 import { RxToReact } from "./rxToReact";
 import { toSelector } from "keautils/dist/selector/selector";
-import { ReactComponent } from "./types";
-import { createJSX } from "./react";
+import { ReactComponent, createJSX } from "./utils";
 
 export type Element = JSX.Element | null | false;
 
