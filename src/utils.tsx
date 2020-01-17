@@ -11,7 +11,8 @@ export type Rxfy<T> = {
 
 /**Devuelve si el componente es una clase de react */
 function isReactComponentClass<P>(x: ReactComponent<P>): x is React.ComponentClass<P> {
-    return ((x as React.ComponentClass<any>) as any).prototype.isReactComponent != null;
+    //Note que prototype puede ser null:
+    return ((x as React.ComponentClass<any>) as any).prototype?.isReactComponent != null;
 }
 
 /**Devuevle el JSX de un @see ReactComponent */
