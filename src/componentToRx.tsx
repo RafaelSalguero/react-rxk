@@ -5,6 +5,7 @@ import { isPromiseLike, isObservable, mapObject, nullsafe, objRxToRxObj, enumObj
 import { PropError, ErrorView } from "./error";
 import * as rxOp from "rxjs/operators";
 import { TopProperty } from "csstype";
+import { createJSX } from "./react";
 
 export interface ComponentToRxPropOptions<T> {
     /**Ignored observables or promises are passed as-is to the inner component */
@@ -67,9 +68,7 @@ export function allPropsIgnore<TProps>(props: Rxfy<TProps>, options: ComponentTo
 }
 
 
-function isReactComponentClass<P>(x: ReactComponent<P>) : x is React.ComponentClass<P> {
-    return ((x as React.ComponentClass<any>) as any).prototype.isReactComponent != null;
-}
+
 
 export function renderComponentToRx<TProps extends { [k: string]: any }>(
     props: rx.Observable<Rxfy<TProps>>,
@@ -78,7 +77,7 @@ export function renderComponentToRx<TProps extends { [k: string]: any }>(
     Error: ReactComponent<{ errores: PropError[] }>,
     options: ComponentToRxOptions<TProps> | undefined,
     loadingDelayMs: number
-): rx.Observable<JSX.Element | null> {
+): rx.Observable<React.ReactNode> {
     type KeyofProps = Extract<keyof TProps, string>;
 
     function getInitial<Key extends keyof TProps>(key: Key): TProps[Key] | undefined {
@@ -131,7 +130,7 @@ export function renderComponentToRx<TProps extends { [k: string]: any }>(
                 loading: false,
                 error: err
             } as PropValue<T>])
-            
+
         );
 
         return ret;
@@ -343,11 +342,11 @@ export function renderComponentToRx<TProps extends { [k: string]: any }>(
 
 
     const viewObs =
-    viewObsSinDeb.pipe(
-        debounceSync( x => {
-            return (x.cargando && loadingDelayMs > 0) ? delay(loadingDelayMs) : syncResolve();
-        }),
-           rxOp.map(x => ({
+        viewObsSinDeb.pipe(
+            debounceSync(x => {
+                return (x.cargando && loadingDelayMs > 0) ? delay(loadingDelayMs) : syncResolve();
+            }),
+            rxOp.map(x => ({
                 ...x,
                 props: {
                     ... (x.props as any),
@@ -360,19 +359,9 @@ export function renderComponentToRx<TProps extends { [k: string]: any }>(
         viewObs.pipe(
             rxOp.map(x => {
                 if (x.errores.length > 0) {
-                    return <Error errores={x.errores} />
-                } else if (x.cargando) {
-                    
-                    if(isReactComponentClass(Loading)) {
-                        return <Loading {...x.props} />;
-                    } else {
-                        //Si el Loading es una función, lo llama directamente, esto para no cambiar la jerarquía del arbol y en caso de que el componente de loading
-                        //sea el mismo que Component (que es un caso común) que no se pierda el state
-                        return Loading(x.props);
-                    }
-                } else {
-                    return <Component {...x.props} />;
+                    return createJSX(Error, { errores: x.errores });
                 }
+                return createJSX(x.cargando ? Loading : Component , x.props );
             })
         );
     return view;

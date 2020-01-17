@@ -1,6 +1,6 @@
 import * as React from "react";
 import * as rx from "rxjs";
-import { Rxfy } from "./types";
+import { Rxfy, ReactComponent } from "./types";
 import { PropError, ErrorView, ErrorViewProps } from "./error";
 import { renderComponentToRx, ComponentToRxOptions, isJsxElement, allPropsIgnore } from "./componentToRx";
 import { createSelector, shallowEquals, enumObject, any, deepEquals } from "keautils";
@@ -9,10 +9,10 @@ import { toSelector } from "keautils/dist/selector/selector";
 
 
 export interface RxProps<T> {
-    render: React.ComponentType<T>;
+    render: ReactComponent<T>;
     props: Rxfy<T>;
-    loading?: React.ComponentType<Partial<T>> | JSX.Element,
-    error?: React.ComponentType<ErrorViewProps> | JSX.Element;
+    loading?: ReactComponent<Partial<T>> | JSX.Element,
+    error?:  ReactComponent<ErrorViewProps> | JSX.Element;
     options?: ComponentToRxOptions<T>;
     loadingTimeoutMs?: number;
     /**Símbolo que indica que el valor se esta cargando, si este valor es emitido por un observable del props se considerará que el componente esta cargando */
@@ -30,7 +30,9 @@ function jsxEquals(a: JSX.Element, b: JSX.Element) {
     );
 }
 
-type JSXOrClass = React.ComponentType<any> | JSX.Element | undefined
+type JSXOrClass =  ReactComponent<any> | JSX.Element | undefined
+
+/**Devuelve si 2 @see JSXOrClass son iguales */
 function compareCompType(a: JSXOrClass, b: JSXOrClass) {
     if (isJsxElement(a) || isJsxElement(b)) {
         //Uno si y otro no es JSX.element
@@ -60,12 +62,12 @@ export class Rx<T> extends React.Component<RxProps<T>> {
     loadingTimeoutMs = toSelector((x: RxProps<T>) => x.loadingTimeoutMs);
     loadingSymbol = toSelector((x: RxProps<T>) => x.loadingSymbol);
 
-    loadingEff = createSelector({ Loading: this.loading, Component: this.comp }, (s): React.ComponentType<Partial<T>> =>
+    loadingEff = createSelector({ Loading: this.loading, Component: this.comp }, (s):  ReactComponent<Partial<T>> =>
         isJsxElement(s.Loading) ? (() => s.Loading as JSX.Element) :
             (s.Loading || s.Component)
     );
 
-    errorEff = createSelector({ Error: this.error }, (s): React.ComponentType<ErrorViewProps> =>
+    errorEff = createSelector({ Error: this.error }, (s):  ReactComponent<ErrorViewProps> =>
         isJsxElement(s.Error) ? (() => s.Error as JSX.Element) :
             (s.Error || ErrorView)
     );
