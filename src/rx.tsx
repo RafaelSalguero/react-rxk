@@ -64,7 +64,7 @@ export class Rx<T> extends React.Component<RxProps<T>> {
 
     loadingEff = createSelector({ Loading: this.loading, Component: this.comp }, (s):  ReactComponent<Partial<T>> =>
         isJsxElement(s.Loading) ? (() => s.Loading as JSX.Element) :
-            (s.Loading || s.Component)
+            (s.Loading || (s.Component as ReactComponent<Partial<T>>))
     );
 
     errorEff = createSelector({ Error: this.error }, (s):  ReactComponent<ErrorViewProps> =>
@@ -114,7 +114,7 @@ export class Rx<T> extends React.Component<RxProps<T>> {
     render() {
         const render = this.obsRender.call(this.props);
         const passThru = allPropsIgnore(this.props.props, this.props.options);
-        const syncRender = passThru ? (this.props.render as React.ComponentType<Rxfy<T>>) : undefined;
+        const syncRender = passThru ? (this.props.render as ReactComponent<Rxfy<T>>) : undefined;
         return <PropsToRx<Rxfy<T>>
             render={render}
             props={this.props.props}
@@ -132,9 +132,9 @@ export class Rx<T> extends React.Component<RxProps<T>> {
  * @param options Opciones para los props
  */
 export function componentToRx<TProps>(
-    Component: React.ComponentType<TProps>,
-    Loading?: React.ComponentType<Partial<TProps>> | JSX.Element,
-    Error?: React.ComponentType<ErrorViewProps> | JSX.Element,
+    Component: ReactComponent<TProps>,
+    Loading?: ReactComponent<Partial<TProps>> | JSX.Element,
+    Error?: ReactComponent<ErrorViewProps> | JSX.Element,
     options?: ComponentToRxOptions<TProps>,
     loadingTimeoutMs: number = 500
 ): React.ComponentClass<Rxfy<TProps>> {
