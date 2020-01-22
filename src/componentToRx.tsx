@@ -27,11 +27,11 @@ export type ComponentToRxOptions<TProps> = { [K in keyof TProps]?: ComponentToRx
 
 type UndoToObs<T> =
     T extends rx.Observable<infer R> ? R :
-    T extends Promise<infer R> ? R :
+    T extends PromiseLike<infer R> ? R :
     T;
 
 /**Convierte un valor a observable */
-function toObservable<T>(x: T | Promise<T> | rx.Observable<T>): rx.Observable<T> {
+function toObservable<T>(x: T | PromiseLike<T> | rx.Observable<T>): rx.Observable<T> {
     if (isPromiseLike(x)) {
         return rx.from(x);
     } else if (isObservable(x)) {

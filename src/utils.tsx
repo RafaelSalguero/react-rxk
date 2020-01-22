@@ -4,7 +4,7 @@ import * as React from "react";
 
 /**Un componente de react ya sea en forma de clase o función */
 export type ReactComponent<TProps> = React.ComponentClass<TProps> | ((props: TProps) => React.ReactNode);
-export type RxfyScalar<T> = T | rx.Observable<T | typeof LoadingSym> | Promise<T>;
+export type RxfyScalar<T> = T | rx.Observable<T | typeof LoadingSym> | PromiseLike<T>;
 export type Rxfy<T> = {
     [K in keyof T]:  RxfyScalar<T[K]>
 };
