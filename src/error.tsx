@@ -1,29 +1,20 @@
 import * as React from "react";
-export interface PropError {
-    prop: string ;
+export interface PropError<T> {
+    prop: keyof T;
     error: string | Error;
 }
 
-export interface ErrorViewProps {
-    errores: PropError[];
+export interface ErrorViewProps<T = any> {
+    errores: PropError<T>[];
 }
 
 
 /**Vista por default para los errores de componentToRx */
-export class ErrorView extends React.PureComponent<ErrorViewProps> {
+export class ErrorView extends React.PureComponent<ErrorViewProps<any>> {
     render() {
         return (
             <span style={{ color: "red" }}>
-                {
-                    this.props.errores.map((x, i) =>
-                        <span key={i}>
-                            Error al obtener <span style={{fontWeight: "bold"}} >{x.prop}</span>: <span style={{fontStyle: "italic"}}>{
-                                typeof x.error == "string" ? x.error :
-                                x.error.message
-                                }</span>
-                        </span>
-                    )
-                }
+                {this.props.errores.map(x => x.error.toString())}
             </span>
         );
     }

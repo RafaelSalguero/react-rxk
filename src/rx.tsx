@@ -1,6 +1,6 @@
 import * as React from "react";
 import * as rx from "rxjs";
-import { Rxfy, ReactComponent } from "./utils";
+import { Rxfy } from "./utils";
 import { PropError, ErrorView, ErrorViewProps } from "./error";
 import { renderComponentToRx, ComponentToRxOptions, isJsxElement, allPropsIgnore } from "./componentToRx";
 import { createSelector, shallowEquals, enumObject, any, deepEquals } from "keautils";
@@ -9,14 +9,17 @@ import { toSelector } from "keautils/dist/selector/selector";
 
 
 export interface RxProps<T> {
-    render: ReactComponent<T>;
+    render: React.ComponentType<T>;
     props: Rxfy<T>;
-    loading?: ReactComponent<Partial<T>> | JSX.Element,
-    error?:  ReactComponent<ErrorViewProps> | JSX.Element;
+    loading?: React.ComponentType<Partial<T>> | JSX.Element,
+    error?:  React.ComponentType<ErrorViewProps> | JSX.Element;
     options?: ComponentToRxOptions<T>;
     loadingTimeoutMs?: number;
     /**Símbolo que indica que el valor se esta cargando, si este valor es emitido por un observable del props se considerará que el componente esta cargando */
     loadingSymbol?: symbol;
+    
+    /**True para loggear en la consola */
+    debug?: boolean;
 }
 
 const defaultLoadingTimeout = 500;
@@ -30,7 +33,7 @@ function jsxEquals(a: JSX.Element, b: JSX.Element) {
     );
 }
 
-type JSXOrClass =  ReactComponent<any> | JSX.Element | undefined
+type JSXOrClass =  React.ComponentType<any> | JSX.Element | undefined
 
 /**Devuelve si 2 @see JSXOrClass son iguales */
 function compareCompType(a: JSXOrClass, b: JSXOrClass) {
@@ -62,12 +65,12 @@ export class Rx<T> extends React.Component<RxProps<T>> {
     loadingTimeoutMs = toSelector((x: RxProps<T>) => x.loadingTimeoutMs);
     loadingSymbol = toSelector((x: RxProps<T>) => x.loadingSymbol);
 
-    loadingEff = createSelector({ Loading: this.loading, Component: this.comp }, (s):  ReactComponent<Partial<T>> =>
+    loadingEff = createSelector({ Loading: this.loading, Component: this.comp }, (s):  React.ComponentType<Partial<T>> =>
         isJsxElement(s.Loading) ? (() => s.Loading as JSX.Element) :
-            (s.Loading || (s.Component as ReactComponent<Partial<T>>))
+            (s.Loading || (s.Component as React.ComponentType<Partial<T>>))
     );
 
-    errorEff = createSelector({ Error: this.error }, (s):  ReactComponent<ErrorViewProps> =>
+    errorEff = createSelector({ Error: this.error }, (s):  React.ComponentType<ErrorViewProps> =>
         isJsxElement(s.Error) ? (() => s.Error as JSX.Element) :
             (s.Error || ErrorView)
     );
@@ -83,7 +86,8 @@ export class Rx<T> extends React.Component<RxProps<T>> {
             options: !deepEquals(curr.options, nextProps.options),
             render: curr.render != nextProps.render,
             props: !shallowEquals(curr.props, nextProps.props),
-            loadingSymbol: curr.loadingSymbol != nextProps.loadingSymbol
+            loadingSymbol: curr.loadingSymbol != nextProps.loadingSymbol,
+            debug: curr.debug != nextProps.debug
         }
 
         const anyDiff = any(enumObject(comps).map(x => x.value), x => x == true);
@@ -114,7 +118,7 @@ export class Rx<T> extends React.Component<RxProps<T>> {
     render() {
         const render = this.obsRender.call(this.props);
         const passThru = allPropsIgnore(this.props.props, this.props.options);
-        const syncRender = passThru ? (this.props.render as ReactComponent<Rxfy<T>>) : undefined;
+        const syncRender = passThru ? (this.props.render as React.ComponentType<Rxfy<T>>) : undefined;
         return <PropsToRx<Rxfy<T>>
             render={render}
             props={this.props.props}
@@ -132,9 +136,9 @@ export class Rx<T> extends React.Component<RxProps<T>> {
  * @param options Opciones para los props
  */
 export function componentToRx<TProps>(
-    Component: ReactComponent<TProps>,
-    Loading?: ReactComponent<Partial<TProps>> | JSX.Element,
-    Error?: ReactComponent<ErrorViewProps> | JSX.Element,
+    Component: React.ComponentType<TProps>,
+    Loading?: React.ComponentType<Partial<TProps>> | JSX.Element,
+    Error?: React.ComponentType<ErrorViewProps> | JSX.Element,
     options?: ComponentToRxOptions<TProps>,
     loadingTimeoutMs: number = 500
 ): React.ComponentClass<Rxfy<TProps>> {

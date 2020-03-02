@@ -42,6 +42,7 @@ function toObservable<T>(x: T | PromiseLike<T> | rx.Observable<T>): rx.Observabl
 }
 
 
+
 function getIgnore<TProps>(key: keyof TProps, options: ComponentToRxOptions<TProps> | undefined): {
     promise: boolean,
     observable: boolean
@@ -67,14 +68,11 @@ export function allPropsIgnore<TProps>(props: Rxfy<TProps>, options: ComponentTo
     return all(allProps, x => shouldIgnore(x.value, x.key, options));
 }
 
-
-
-
 export function renderComponentToRx<TProps extends { [k: string]: any }>(
     props: rx.Observable<Rxfy<TProps>>,
     Component: ReactComponent<TProps>,
     Loading: ReactComponent<Partial<TProps>>,
-    Error: ReactComponent<{ errores: PropError[] }>,
+    Error: ReactComponent<{ errores: PropError<any>[] }>,
     options: ComponentToRxOptions<TProps> | undefined,
     loadingDelayMs: number
 ): rx.Observable<React.ReactNode> {
@@ -146,7 +144,7 @@ export function renderComponentToRx<TProps extends { [k: string]: any }>(
         [K in keyof TProps]: PropValue<TProps[K]>
     };
 
-    function obtenerError(values: PropValues): PropError[] {
+    function obtenerError(values: PropValues): PropError<any>[] {
         const arr = enumObject(values) as {
             key: KeyofProps,
             value: PropValue<TProps[keyof TProps]>
@@ -317,7 +315,7 @@ export function renderComponentToRx<TProps extends { [k: string]: any }>(
 
     interface ViewPropsObs {
         props: TProps,
-        errores: PropError[],
+        errores: PropError<any>[],
         cargando: boolean,
         first: boolean
     };

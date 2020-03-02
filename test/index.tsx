@@ -1,4 +1,4 @@
-import { RxToReact, PropsToRx, componentToRx, Rx } from "../src/index";
+import { Rx } from "../src/rx2";
 import * as React from "react";
 import * as DOM from "react-dom";
 import * as rx from "rxjs";
@@ -47,13 +47,11 @@ class MyComp2 extends React.Component<MyProps2> {
                     <br />
                     <label>c es promesa:</label>{"" + !!(this.props.c && typeof this.props.c.then == "function")}
                     <br />
-                    <label>valor de c:</label>{this.props.c && <RxToReact value={rx.from(this.props.c.then(x => <span>{x}</span>))} />}
                     <br />
                     <label>d es observable:</label> {"" + !!(this.props.d && typeof this.props.d.subscribe == "function")}
                     <br />
                     <label>a:</label>{this.props.a}
                     <br />
-                    <label>valor de d:</label>{this.props.d && <RxToReact value={this.props.d.pipe(rxOp.map(x => <span>{x}</span>))} />}
                     <br />
                     <label>e:</label> {this.props.e}
                     <br />
@@ -64,17 +62,6 @@ class MyComp2 extends React.Component<MyProps2> {
     }
 }
 
-class OtraPrueba extends React.Component<{ d: rx.Observable<string>, e: string }> {
-    render() {
-        return (
-            <div>
-                {<RxToReact value={this.props.d.pipe(rxOp.map(x => <span>{x}</span>))} />}
-                <br />
-                {this.props.e}
-            </div>
-        );
-    }
-}
 
 class Texto extends React.Component<{ texto: string }> {
     render() {
@@ -87,18 +74,6 @@ class Texto extends React.Component<{ texto: string }> {
     }
 }
 
-const OtraPruebaRx = componentToRx<{ d: rx.Observable<string>, e: string }>(OtraPrueba, undefined, undefined, { d: { ignore: { observable: true } } });
-const MyCompRx = componentToRx(MyComp);
-const MyComp2Rx = componentToRx(MyComp2, <span>Cargando...</span>, undefined, {
-
-    c: { ignore: { promise: true } },
-    d: { ignore: { observable: true } }
-});
-const TextoRx = componentToRx(Texto, <span>Cargando...</span>);
-
-const TextoRxInicial = componentToRx(Texto, undefined, undefined, {
-    texto: { initial: "Valor inicial promesa/rxjs sin resolver" },
-});
 
 
 class LoadingComponent extends React.PureComponent<{ texto: string, loading?: boolean }> {
@@ -114,9 +89,6 @@ class LoadingComponent extends React.PureComponent<{ texto: string, loading?: bo
     }
 }
 
-const LoadingComponentRx = componentToRx(LoadingComponent, undefined, undefined, {
-    loading: { loading: true }
-});
 
 
 class PromLoadingComponent extends React.PureComponent<{ a: number, b: number, loading?: boolean, onChange: (x: number) => void }> {
@@ -143,7 +115,6 @@ class PromLoadingComponent extends React.PureComponent<{ a: number, b: number, l
     }
 }
 
-const PromLoadingCompRx = componentToRx(PromLoadingComponent, undefined, undefined, { loading: { loading: true } });
 
 const promObs1 = rx.from(delay(1000).then(x => "Promesa 1"));
 const promObs2 = promObs1.pipe(rxOp.map(x => "Map: " + x));
@@ -165,23 +136,7 @@ class SimpleText extends React.PureComponent<{ text: string, loading?: boolean }
     }
 }
 const cargando = <span>cargando...</span>;
-const SimpleTextRx = componentToRx(SimpleText, <span>cargando...</span>, undefined, undefined, 1000);
 
-class NeastedComponent extends React.PureComponent<{ text: string }> {
-    render() {
-        return (
-            <div>
-                Value: {this.props.text}
-                <br />
-                Neasted:
-                <br />
-                <SimpleTextRx text={promObs1} />
-            </div>
-        );
-    }
-}
-
-const NeastedComponentRx = componentToRx(NeastedComponent, <span>cargando neasted...</span>, undefined, undefined);
 
 let contador = 0;
 export class App extends React.Component<{}, { prom: Promise<string> | string, promValue: number, cambiar: number, promValueProm: Promise<number> }> {
@@ -235,19 +190,13 @@ export class App extends React.Component<{}, { prom: Promise<string> | string, p
                 <Rx
                     render={SimpleText}
                     loading={<span>cargando...</span>}
-                    options={{
-                        text: {
-                            initial: "Hey"
-                        },
-                        loading: {
-                            loading: true
-                        }
-                    }}
                     props={{
                         text: this.state.prom
                     }}
+                    debug
                 />
 
+                <br />
                 <button onClick={() => this.setState({
                     prom: delay(1000).then(x => "otro state async" + Math.random())
                 })} >
