@@ -3,7 +3,6 @@ import * as React from "react";
 import * as DOM from "react-dom";
 import * as rx from "rxjs";
 import * as rxOp from "rxjs/operators";
-import { ComponenteConStateRx } from "./state";
 import { RxfyScalar } from "../src";
 import { syncResolve } from "keautils";
 
