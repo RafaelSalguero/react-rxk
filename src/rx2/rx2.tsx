@@ -2,7 +2,7 @@ import { RxProps } from "../rx";
 import { isValidElement } from "react";
 import { Observable, Subscribable } from "rxjs";
 import { isObservable, isPromiseLike, arrayToMap } from "keautils";
-import { SubscriptionMap, subscribeMap, SyncValue, SubscribeMapLog, allSync, IgnoreMap, anyError, listErrors } from "./subscription";
+import { SubscriptionMap, subscribeMap, SyncValue, SubscribeMapLog, allSync, IgnoreMap, anyError, listErrors, unsubscribeAll } from "./subscription";
 import React = require("react");
 import { RxState, propsToResetState, extractValuesFromRxState, extractValueProps, extractInitialsFromSubscriptionMap, mixRxPropsState, RxStateProp, getLoadingProps } from "./state";
 import { Rxfy, RxfyScalar } from "../utils";
@@ -35,7 +35,7 @@ export interface RxProps2<T> {
 /**Dibuja el componente en el prop @see render con los props resueltos, cuando estos puedes ser promesas u observables.
  * Mientras no esten resueltos dibuja @see loading
   */
-export class Rx<T> extends React.PureComponent<RxProps2<T>, RxState<T>> {
+export class Rx<T> extends React.Component<RxProps2<T>, RxState<T>> {
     constructor(props: RxProps2<T>) {
         super(props);
         this.map = subscribeMap(props.props, {}, this.onNext, props.ignore || {}, this.onSubscribeMapLog);
@@ -43,6 +43,10 @@ export class Rx<T> extends React.PureComponent<RxProps2<T>, RxState<T>> {
     }
 
     map: SubscriptionMap<T>;
+
+    componentWillUnmount() {
+        unsubscribeAll(this.map);
+    }
 
     onSubscribeMapLog = (x: SubscribeMapLog<T>) => {
         if (this.props.debug) {

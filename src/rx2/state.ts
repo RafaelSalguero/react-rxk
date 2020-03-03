@@ -6,8 +6,8 @@ import { mapObject, enumObject, filterObject, mergeObj } from "keautils";
 export interface RxStateProp<T> {
     /**Valor síncrono del prop, ya sea el valor resuelto o el error. (Los valores de "loading" no aparecen en el state) */
     value: SyncValue<T>;
-    /**Valor original, se usa para comparar el prop y saber si cambió */
-    original: RxfyScalar<T>;
+    /**Numero de versión de este valor, se compara con el del mapa de subscripciones para ver cual es la mas reciente */
+    version: number;
 }
 
 /**Estado interno de un Rx */
@@ -116,7 +116,7 @@ export function getLoadingProps<T>(state: RxState<T>, map: SubscriptionMap<T>) :
             return mapProp?.initial;
         }
 
-        if(stateProp?.original == mapProp?.original) {
+        if(stateProp !== undefined) {
             //Si el state está actualizado, devuelve el valor en el state
             return stateProp?.value;
         }
@@ -128,8 +128,7 @@ export function getLoadingProps<T>(state: RxState<T>, map: SubscriptionMap<T>) :
             return mapProp.initial.old;
         }
 
-        //El valor del prop anterior es el bueno:
-        return stateProp?.value;
+        return undefined;
     });
 
     return ret;

@@ -7,6 +7,8 @@ import { PropError } from "../error";
 interface Subscription<T> {
     /**Valor original */
     original: RxfyScalar<T> | undefined;
+    /**Numero de la subscripción, se aumenta con cada prop */
+    version: number;
     /**Se desuscribe de este valor */
     unsubscribe: (() => void) | undefined;
     /**Valor inicial, se devuelve si el valor se resolvió en un principo de forma síncrona */
@@ -87,9 +89,23 @@ function subscribeNew<T>(
 
     let unsubscribe: (() => void) | undefined = undefined;
     if (isObservable(x)) {
-        unsubscribe = x.subscribe(onNext, onError).unsubscribe;
+        const originalSubscription = x.subscribe(onNext, onError);
+        unsubscribe = () => originalSubscription.unsubscribe();
     } else if (isPromiseLike(x)) {
-        x.then(onNext, onError);
+        //Imitar el unsubscribe del observable de tal manera que una vez que se llame la resolución de la promesa sea ignorada
+        let unsubscribed = false;
+        x.then(x => {
+            if (unsubscribed)
+                return;
+            onNext(x);
+        }, err => {
+            if (unsubscribed)
+                return;
+
+            onError(err);
+        });
+
+        unsubscribe = () => unsubscribed = true;
     } else {
         onNext(x);
     }
@@ -115,13 +131,21 @@ export type SubscribeLog =
  * de tal manera que la subscripción actual a pesar de que este cargando conserve el valor anterior
  */
 function setOldToSubscription<T>(old: Subscription<T> | undefined, next: Subscription<T>): Subscription<T> {
-    if (next.initial.type == "loading" && old?.initial.type == "value") {
+    if (next.initial.type == "loading") {
+        const nextInitial: SyncValue<T> =
+            old?.initial.type == "value" ?
+                {
+                    ...next.initial,
+                    old: old.initial
+                } :
+                old?.initial.type == "loading" ? {
+                    ...next.initial,
+                    old: old.initial.old
+                } : next.initial;
+
         return {
             ...next,
-            initial: {
-                ...next.initial,
-                old: old.initial
-            }
+            initial: nextInitial
         }
     }
     return next;
@@ -186,7 +210,7 @@ export type IgnoreMap<T> = {
 export function subscribeMap<TMap>(
     newProps: Rxfy<TMap>,
     oldMap: SubscriptionMap<TMap>,
-    subscriber: (key: keyof TMap, value: SyncValue<TMap[keyof TMap]>, original:  RxfyScalar<TMap[keyof TMap]> ) => void,
+    subscriber: (key: keyof TMap, value: SyncValue<TMap[keyof TMap]>, original: RxfyScalar<TMap[keyof TMap]>) => void,
     ignoreMap: IgnoreMap<TMap>,
     log: (x: SubscribeMapLog<TMap>) => void
 )
@@ -202,6 +226,14 @@ export function subscribeMap<TMap>(
 
     });
     return ret as SubscriptionMap<TMap>;
+}
+
+/**Llama al unsubscribe de todas las subscripciones */
+export function unsubscribeAll<TMap>(map: SubscriptionMap<TMap>) {
+    const items = enumObject(map);
+    for (const it of items) {
+        it.value?.unsubscribe?.();
+    }
 }
 
 /**True si todas las propiedades tienen un valor sincrono */
