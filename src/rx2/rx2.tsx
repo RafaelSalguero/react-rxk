@@ -61,7 +61,7 @@ export class Rx<T> extends React.Component<RxProps2<T>, RxState<T>> {
         this.setState((state) => {
             //Solo cambiamos el state si esta versión es superior a la actual
             const originalStateProp = state[key];
-            if(originalStateProp?.version !== undefined && version <= originalStateProp.version){
+            if(originalStateProp?.version !== undefined && version < originalStateProp.version){
                 //Este cambio es mas viejo que el state actual
                 return null;
             }
