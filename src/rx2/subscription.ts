@@ -1,5 +1,5 @@
 import { Observable, isObservable } from "rxjs";
-import { isPromiseLike, LoadingSym, mapObject, mergeObj, first, enumObject, all, any } from "keautils";
+import { isPromiseLike, mergeObj, enumObject, all, any } from "keautils";
 import { RxfyScalar, Rxfy } from "../utils";
 import { RxSyncProps } from "./state";
 import { PropError } from "../error";
@@ -56,8 +56,6 @@ export type SubscribeNewLog = {
     type: "onNext",
     /**Si el valor llegó de manera síncrona */
     sync: boolean;
-    /**Si el valor fue un loading symbol */
-    loadingSymbol: boolean;
     /**Valor reportado */
     value: any;
 } | {
@@ -77,21 +75,14 @@ function subscribeNew<T>(
     let syncValue: SyncValue<T> = { type: "loading" };
     //Si el valor se reportó de inmediato
     let firstValue = true;
-    const onNext = (x: T | typeof LoadingSym) => {
-        log({ type: "onNext", sync: firstValue, loadingSymbol: x === LoadingSym, value: x });
+    const onNext = (x: T) => {
+        log({ type: "onNext", sync: firstValue, value: x });
 
-        if (x === LoadingSym) {
-            if (!firstValue) {
-                subscriber({ type: "loading" });
-            }
-        }
-        else {
-            if (firstValue) {
-                //El primer valor no lo reporta si no que lo establece como el initial
-                syncValue = { type: "value", value: x };
-            } else {
-                subscriber({ type: "value", value: x });
-            }
+        if (firstValue) {
+            //El primer valor no lo reporta si no que lo establece como el initial
+            syncValue = { type: "value", value: x };
+        } else {
+            subscriber({ type: "value", value: x });
         }
     }
 

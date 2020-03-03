@@ -4,7 +4,7 @@ import * as DOM from "react-dom";
 import * as rx from "rxjs";
 import * as rxOp from "rxjs/operators";
 import { RxfyScalar } from "../src";
-import { syncResolve, LoadingSym } from "keautils";
+import { syncResolve } from "keautils";
 
 function delay(ms: number): Promise<void> {
     return new Promise(resolve => window.setTimeout(resolve, ms));
@@ -231,15 +231,6 @@ export class App extends React.Component<{}, { prom: RxfyScalar<string>, promVal
                     prom: rx.timer(500, 500).pipe(rxOp.map(x => "obs value: " + x))
                 })} >
                     Obs
-                </button>
-
-                <button onClick={() => this.setState({
-                    prom: rx.timer(500, 500).pipe(
-                        rxOp.map(x => x % 3 == 0 ? LoadingSym : x),
-                        rxOp.map(x => x == LoadingSym ? x : "obs value: " + x)
-                        )
-                })} >
-                    Obs loading symbol
                 </button>
 
                 <button onClick={() => this.setState({

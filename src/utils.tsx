@@ -1,8 +1,7 @@
 import * as rx from "rxjs";
-import { LoadingSym } from "keautils";
 import * as React from "react";
 
-export type RxfyScalar<T> = T | rx.Observable<T | typeof LoadingSym> | PromiseLike<T>;
+export type RxfyScalar<T> = T | rx.Observable<T> | PromiseLike<T>;
 export type Rxfy<T> = {
     [K in keyof T]:  RxfyScalar<T[K]>
 };
