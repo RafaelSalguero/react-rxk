@@ -28,26 +28,51 @@ export interface RxProps2<T> {
     debug?: boolean;
 }
 
+type RxLog<T> = {
+    /**Indica que el RX se va a desmontar y a desuscribir de todos los props */
+    type: "unmount"
+} | {
+    /**Indica un log de las subscripciones */
+    type: "sub",
+    sub: SubscribeMapLog<T>
+} | {
+    /**Indica que se construyó la instancia del RX */
+    type: "constructor"
+};
+
 /**Dibuja el componente en el prop @see render con los props resueltos, cuando estos puedes ser promesas u observables.
  * Mientras no esten resueltos dibuja @see loading
   */
 export class Rx<T> extends React.Component<RxProps2<T>, RxState<T>> {
     constructor(props: RxProps2<T>) {
         super(props);
-        this.map = subscribeMap(props.props, {}, this.onNext, props.ignore || {}, this.onSubscribeMapLog);
         this.state = {} as any;
+
+        this.onLog({
+            type: "constructor"
+        });
     }
 
-    map: SubscriptionMap<T>;
+    map: SubscriptionMap<T> = {};
 
     componentWillUnmount() {
+        this.onLog({
+            type: "unmount"
+        });
         unsubscribeAll(this.map);
     }
 
-    onSubscribeMapLog = (x: SubscribeMapLog<T>) => {
-        if (this.props.debug) {
-            console.log(x);
+    onLog = (log: RxLog<T>) => {
+        if(this.props.debug) {
+            console.log(log);
         }
+    }
+
+    onSubscribeMapLog = (x: SubscribeMapLog<T>) => {
+        this.onLog({
+            type: "sub",
+            sub: x
+        });
     }
 
     onNext = <TKey extends keyof T>(key: TKey, value: SyncValue<T[TKey]>, version: number) => {

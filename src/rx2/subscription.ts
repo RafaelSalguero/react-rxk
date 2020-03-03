@@ -58,6 +58,12 @@ export type SubscribeNewLog = {
     sync: boolean;
     /**Si el valor fue un loading symbol */
     loadingSymbol: boolean;
+    /**Valor reportado */
+    value: any;
+} | {
+    /**Indica que se subscribiío a un prop, ya sea promesa u observable */
+    type: "subscribe",
+    value: Observable<any> | PromiseLike<any>
 }
 
 /**Se subscribe a un valor
@@ -72,7 +78,7 @@ function subscribeNew<T>(
     //Si el valor se reportó de inmediato
     let firstValue = true;
     const onNext = (x: T | typeof LoadingSym) => {
-        log({ type: "onNext", sync: firstValue, loadingSymbol: x === LoadingSym });
+        log({ type: "onNext", sync: firstValue, loadingSymbol: x === LoadingSym, value: x });
 
         if (x === LoadingSym) {
             if (!firstValue) {
@@ -100,9 +106,14 @@ function subscribeNew<T>(
 
     let unsubscribe: (() => void) | undefined = undefined;
     if (isObservable(x)) {
+        log({ type: "subscribe", value: x });
+
         const originalSubscription = x.subscribe(onNext, onError);
         unsubscribe = () => originalSubscription.unsubscribe();
     } else if (isPromiseLike(x)) {
+        log({ type: "subscribe", value: x });
+
+
         //Imitar el unsubscribe del observable de tal manera que una vez que se llame la resolución de la promesa sea ignorada
         let unsubscribed = false;
         x.then(x => {
@@ -117,6 +128,7 @@ function subscribeNew<T>(
         });
 
         unsubscribe = () => unsubscribed = true;
+
     } else {
         onNext(x);
     }
@@ -144,8 +156,8 @@ export type SubscribeLog =
  */
 function setOldToSubscription<T>(old: Subscription<T> | undefined, next: Subscription<T>): Subscription<T> {
     return {
-        ... next,
-        old: old?.initial.type =="value" ? {
+        ...next,
+        old: old?.initial.type == "value" ? {
             value: old?.initial.value,
             version: old?.version
         } : old?.old
