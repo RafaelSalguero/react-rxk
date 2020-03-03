@@ -1,11 +1,8 @@
-import { RxProps } from "../rx";
 import { isValidElement } from "react";
-import { Observable, Subscribable } from "rxjs";
-import { isObservable, isPromiseLike, arrayToMap } from "keautils";
 import { SubscriptionMap, subscribeMap, SyncValue, SubscribeMapLog, allSync, IgnoreMap, anyError, listErrors, unsubscribeAll } from "./subscription";
 import React = require("react");
-import { RxState, propsToResetState, extractValuesFromRxState, extractValueProps, extractInitialsFromSubscriptionMap, mixRxPropsState, RxStateProp, getLoadingProps } from "./state";
-import { Rxfy, RxfyScalar } from "../utils";
+import { RxState, extractValueProps, RxStateProp, getSyncProps } from "./state";
+import { Rxfy } from "../utils";
 import { ErrorViewProps, ErrorView } from "../error";
 
 
@@ -54,19 +51,18 @@ export class Rx<T> extends React.Component<RxProps2<T>, RxState<T>> {
         }
     }
 
-    onNext = <TKey extends keyof T>(key: TKey, value: SyncValue<T[TKey]>, original: RxfyScalar<T[TKey]>) => {
+    onNext = <TKey extends keyof T>(key: TKey, value: SyncValue<T[TKey]>, version: number) => {
         const nextVal: RxStateProp<T[TKey]> = {
-            original: original,
-            value: value
+            value: value,
+            version: version
         };
 
-
         const change = { [key]: nextVal } as any;
-        this.setState((state, props) => {
-            //Solo cambiamos el state si original encaja con el prop, si no, significa que el prop cambio en el inter en lo que llegaba el state
-            //y ese state ya no es válido
-            const originalProp = props.props[key];
-            if (originalProp != original) {
+        this.setState((state) => {
+            //Solo cambiamos el state si esta versión es superior a la actual
+            const originalStateProp = state[key];
+            if(originalStateProp?.version !== undefined && version <= originalStateProp.version){
+                //Este cambio es mas viejo que el state actual
                 return null;
             }
 
@@ -77,10 +73,8 @@ export class Rx<T> extends React.Component<RxProps2<T>, RxState<T>> {
     render() {
         const originalProps = this.props.props;
         this.map = subscribeMap<T>(originalProps, this.map, this.onNext, this.props.ignore || {}, this.onSubscribeMapLog);
-        const initials = extractInitialsFromSubscriptionMap(this.map);
-        const state = extractValuesFromRxState(this.state, originalProps)
+        const values = getSyncProps(this.state, this.map);
 
-        const values = mixRxPropsState(initials, state);
         if (allSync(values)) {
             const props = extractValueProps(values);
             const Comp = this.props.render;
@@ -103,8 +97,7 @@ export class Rx<T> extends React.Component<RxProps2<T>, RxState<T>> {
                 return this.props.loading;
             }
 
-            const syncProps = getLoadingProps(this.state, this.map);
-            const props = extractValueProps(syncProps);
+            const props = extractValueProps(values);
 
             const Comp = this.props.loading || (() => null);
             return <Comp {...props} />;
