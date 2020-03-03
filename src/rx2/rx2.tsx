@@ -15,7 +15,7 @@ export interface RxProps2<T> {
     props: Rxfy<T>;
 
     /**Componente a mostrar cuando se esté cargando. Este componente recibirá props indefinidos o inconsistentes entre sí mientras se este cargando.
-     * Por default no dibuja nada 
+     * Por default dibuja lo mismo que @see render
     */
     loading?: React.ComponentType<Partial<T>> | React.ReactElement;
 
@@ -103,7 +103,7 @@ export class Rx<T> extends React.Component<RxProps2<T>, RxState<T>> {
 
             const props = extractValueProps(values);
 
-            const Comp = this.props.loading || (() => null);
+            const Comp = this.props.loading || this.props.render;
             return <Comp {...props} />;
         } 4
     }
