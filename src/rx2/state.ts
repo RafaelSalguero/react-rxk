@@ -73,3 +73,23 @@ export function getSyncProps<T>(state: RxState<T>, map: SubscriptionMap<T>): RxS
 
     return ret;
 }
+
+/**Combina un cambio de state prop, preservando el valor anterior en el fallback en caso
+ * de que un "loading" sustituya a un "value"
+*/
+export function combineStateProp<T>(old: RxStateProp<T> | undefined, next: RxStateProp<T>) : RxStateProp<T> {
+    if(next.value.type =="loading") {
+        //Preservar el fallback:
+        return {
+            ... next,
+            value: {
+                ... next.value,
+                fallback: 
+                    old?.value.type =="value" ?  old.value.value : 
+                    old?.value.type== "loading" ? old.value.fallback : 
+                    undefined
+            }
+        };
+    }
+    return next;
+}

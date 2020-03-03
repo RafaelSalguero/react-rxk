@@ -1,7 +1,7 @@
 import { isValidElement } from "react";
 import { SubscriptionMap, subscribeMap, SyncValue, SubscribeMapLog, allSync, IgnoreMap, anyError, listErrors, unsubscribeAll } from "./subscription";
 import React = require("react");
-import { RxState, extractValueProps, RxStateProp, getSyncProps } from "./state";
+import { RxState, extractValueProps, RxStateProp, getSyncProps, combineStateProp } from "./state";
 import { Rxfy } from "../utils";
 import { ErrorViewProps, ErrorView } from "../error";
 
@@ -57,15 +57,16 @@ export class Rx<T> extends React.Component<RxProps2<T>, RxState<T>> {
             version: version
         };
 
-        const change = { [key]: nextVal } as any;
         this.setState((state) => {
-            //Solo cambiamos el state si esta versión es superior a la actual
+            //Solo cambiamos el state si esta versión es igual o superior a la actual
             const originalStateProp = state[key];
-            if(originalStateProp?.version !== undefined && version < originalStateProp.version){
+            if (originalStateProp?.version !== undefined && version < originalStateProp.version) {
                 //Este cambio es mas viejo que el state actual
                 return null;
             }
 
+            const nextStateProp = combineStateProp(originalStateProp, nextVal);
+            const change = { [key]: nextStateProp } as Pick<RxState<T>, TKey>;
             return change;
         });
     }
@@ -76,12 +77,14 @@ export class Rx<T> extends React.Component<RxProps2<T>, RxState<T>> {
         const values = getSyncProps(this.state, this.map);
 
         if (allSync(values)) {
+            //Todos los valores estan resueltos, dibuja el "render"
             const props = extractValueProps(values);
             const Comp = this.props.render;
 
             return <Comp {...props} />;
 
         } else if (anyError(values)) {
+            //Existe algun error
             if (isValidElement(this.props.error)) {
                 return this.props.error;
             }
@@ -93,6 +96,7 @@ export class Rx<T> extends React.Component<RxProps2<T>, RxState<T>> {
         }
 
         {
+            //Algun valor está cargando
             if (isValidElement(this.props.loading)) {
                 return this.props.loading;
             }
