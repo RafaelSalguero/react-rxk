@@ -26,7 +26,7 @@ export type RxSyncProps<T> = {
 export function extractValueProps<T>(syncProps: RxSyncProps<T>): T {
     const r = mapObject(syncProps, x =>
         x?.type == "value" ? x.value :
-            x?.type == "loading" ? x.old?.value :
+            x?.type == "loading" ? x.fallback :
                 undefined as any
     );
     return r;
@@ -40,13 +40,35 @@ export function getSyncProps<T>(state: RxState<T>, map: SubscriptionMap<T>): RxS
             return mapProp?.initial;
         }
 
-        if (stateProp?.version !== undefined && mapProp?.version !== undefined && stateProp.version >= mapProp.version) {
-            //Si el state está actualizado, devuelve el valor en el state
-            return stateProp?.value;
+        if (
+            stateProp != null && (
+                mapProp?.old == null || (stateProp.version >= mapProp.old.version)
+            )
+        ) {
+            //Esta cargando si el prop tiene una versión mas nueva que el state:
+            const isLoading = mapProp === undefined || (stateProp.version < mapProp.version);
+            const value = stateProp?.value;
+
+            if (isLoading) {
+                return {
+                    type: "loading",
+                    fallback: value.type == "value" ? value.value : undefined
+                };
+            }
+
+            //El valor está actualizado y no esta cargando
+            return value;
         }
 
         //El prop es mas reciente, devuelve el valor del prop:
-        return mapProp?.initial;
+        if (mapProp?.old != null) {
+            return {
+                type: "loading",
+                fallback: mapProp.old.value
+            };
+        }
+
+        return undefined;
     });
 
     return ret;

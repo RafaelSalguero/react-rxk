@@ -13,6 +13,8 @@ interface Subscription<T> {
     unsubscribe: (() => void) | undefined;
     /**Valor inicial, se devuelve si el valor se resolvió en un principo de forma síncrona */
     initial: SyncValue<T>;
+    /**El valor anterior */
+    old?: SubscriptionOldValue<T>;
 }
 
 
@@ -28,10 +30,17 @@ export interface SubError {
     error: any;
 }
 
+/**El valor anterior de una subscripción */
+export interface SubscriptionOldValue<T> {
+    value: T;
+    version: number;
+}
+
 /**Promesa u observable cargando */
 export interface SubLoading<T> {
     type: "loading";
-    old?: SubValue<T>;
+    /**Valor opcional default para un valor que está cargando */
+    fallback?: T;
 }
 /**Representa el estado de una promesax */
 export type SyncValue<T> = SubValue<T> | SubError | SubLoading<T>;
@@ -134,24 +143,13 @@ export type SubscribeLog =
  * de tal manera que la subscripción actual a pesar de que este cargando conserve el valor anterior
  */
 function setOldToSubscription<T>(old: Subscription<T> | undefined, next: Subscription<T>): Subscription<T> {
-    if (next.initial.type == "loading") {
-        const nextInitial: SyncValue<T> =
-            old?.initial.type == "value" ?
-                {
-                    ...next.initial,
-                    old: old.initial
-                } :
-                old?.initial.type == "loading" ? {
-                    ...next.initial,
-                    old: old.initial.old
-                } : next.initial;
-
-        return {
-            ...next,
-            initial: nextInitial
-        }
+    return {
+        ... next,
+        old: old?.initial.type =="value" ? {
+            value: old?.initial.value,
+            version: old?.version
+        } : old?.old
     }
-    return next;
 }
 
 /**Incrementa el numero de versión de una subscripción */
@@ -186,7 +184,7 @@ function subscribe<T>(
     const onNext = (value: SyncValue<T>) => {
         //Para este punto ret ya está asignado
         const version = ret.version;
-        subscriber(value, version );
+        subscriber(value, version);
     }
 
     const nextSubsription = subscribeNew(next, onNext, log);
@@ -229,7 +227,7 @@ export type IgnoreMap<T> = {
 export function subscribeMap<TMap>(
     newProps: Rxfy<TMap>,
     oldMap: SubscriptionMap<TMap>,
-    subscriber: (key: keyof TMap, value: SyncValue<TMap[keyof TMap]>,  version: number) => void,
+    subscriber: (key: keyof TMap, value: SyncValue<TMap[keyof TMap]>, version: number) => void,
     ignoreMap: IgnoreMap<TMap>,
     log: (x: SubscribeMapLog<TMap>) => void
 )
