@@ -27,11 +27,12 @@ export interface SubError {
 }
 
 /**Promesa u observable cargando */
-export interface SubLoading {
+export interface SubLoading<T> {
     type: "loading";
+    old?: SubValue<T>;
 }
 /**Representa el estado de una promesax */
-export type SyncValue<T> = SubValue<T> | SubError | SubLoading;
+export type SyncValue<T> = SubValue<T> | SubError | SubLoading<T>;
 
 /**Tipos de log de un subscribeNew */
 export type SubscribeNewLog = {
@@ -110,6 +111,22 @@ export type SubscribeLog =
         type: "unsubscribe"
     }
 
+/**En caso de que la subscripción vieja tenga un valor resuelto, se lo pone al "old" del "next" en caso de que next este en status de cargando,
+ * de tal manera que la subscripción actual a pesar de que este cargando conserve el valor anterior
+ */
+function setOldToSubscription<T>(old: Subscription<T> | undefined, next: Subscription<T>): Subscription<T> {
+    if (next.initial.type == "loading" && old?.initial.type == "value") {
+        return {
+            ...next,
+            initial: {
+                ...next.initial,
+                old: old.initial
+            }
+        }
+    }
+    return next;
+}
+
 /**Si cambio el valor, se subscribe y se desuscribe del anterior */
 function subscribe<T>(
     next: RxfyScalar<T>,
@@ -130,7 +147,9 @@ function subscribe<T>(
         }
     }
 
-    return subscribeNew(next, subscriber, log);
+    const nextSubsription = subscribeNew(next, subscriber, log);
+    const ret = setOldToSubscription(old, nextSubsription);
+    return ret;
 }
 
 /**Devuelve una suscripción "dummy" para un prop que se marcó como que se debe de ignorar */
@@ -157,6 +176,7 @@ export type IgnoreMap<T> = {
     [K in keyof T]?: boolean;
 }
 
+
 /**
  * En cada render, obtiene el nuevo mapa de subscripción, se desuscribe de los viejos observables y se suscribe a las nuevas promesas/observables
  * si es que hay
@@ -166,7 +186,7 @@ export type IgnoreMap<T> = {
 export function subscribeMap<TMap>(
     newProps: Rxfy<TMap>,
     oldMap: SubscriptionMap<TMap>,
-    subscriber: (key: keyof TMap, value: SyncValue<TMap[keyof TMap]>) => void,
+    subscriber: (key: keyof TMap, value: SyncValue<TMap[keyof TMap]>, original:  RxfyScalar<TMap[keyof TMap]> ) => void,
     ignoreMap: IgnoreMap<TMap>,
     log: (x: SubscribeMapLog<TMap>) => void
 )
@@ -178,7 +198,7 @@ export function subscribeMap<TMap>(
             return passThruSubscription(next);
         }
 
-        return subscribe<TMap[keyof TMap]>(next!, old, x => subscriber(key, x), x => log({ prop: key, log: x }));
+        return subscribe<TMap[keyof TMap]>(next!, old, x => subscriber(key, x, next!), x => log({ prop: key, log: x }));
 
     });
     return ret as SubscriptionMap<TMap>;
@@ -199,7 +219,7 @@ export function listErrors<T>(props: RxSyncProps<T>): PropError<T>[] {
     return enumObject(props)
         .filter(x => x.value?.type == "error")
         .map<PropError<T>>(x => ({
-            prop: x.key ,
+            prop: x.key,
             error: (x.value as SubError).error
         }));
 }

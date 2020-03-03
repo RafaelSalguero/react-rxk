@@ -4,8 +4,8 @@ import { Observable, Subscribable } from "rxjs";
 import { isObservable, isPromiseLike, arrayToMap } from "keautils";
 import { SubscriptionMap, subscribeMap, SyncValue, SubscribeMapLog, allSync, IgnoreMap, anyError, listErrors } from "./subscription";
 import React = require("react");
-import { RxState, propsToResetState, extractInitialsFromSubscriptionMap, extractValuesFromRxState, mixRxPropsState, extractValueProps } from "./state";
-import { Rxfy } from "../utils";
+import { RxState, propsToResetState, extractValuesFromRxState, extractValueProps, extractInitialsFromSubscriptionMap, mixRxPropsState, RxStateProp, getLoadingProps } from "./state";
+import { Rxfy, RxfyScalar } from "../utils";
 import { ErrorViewProps, ErrorView } from "../error";
 
 
@@ -50,8 +50,24 @@ export class Rx<T> extends React.PureComponent<RxProps2<T>, RxState<T>> {
         }
     }
 
-    onNext = <TKey extends keyof T>(key: TKey, value: SyncValue<T[TKey]>) => {
-        this.setState({ [key]: value } as any);
+    onNext = <TKey extends keyof T>(key: TKey, value: SyncValue<T[TKey]>, original: RxfyScalar<T[TKey]>) => {
+        const nextVal: RxStateProp<T[TKey]> = {
+            original: original,
+            value: value
+        };
+
+
+        const change = { [key]: nextVal } as any;
+        this.setState((state, props) => {
+            //Solo cambiamos el state si original encaja con el prop, si no, significa que el prop cambio en el inter en lo que llegaba el state
+            //y ese state ya no es válido
+            const originalProp = props.props[key];
+            if (originalProp != original) {
+                return null;
+            }
+
+            return change;
+        });
     }
 
     render() {
@@ -83,11 +99,8 @@ export class Rx<T> extends React.PureComponent<RxProps2<T>, RxState<T>> {
                 return this.props.loading;
             }
 
-            /** Es diferente de @see state ya que este puede tener valores inconsistentes (no encaja el state con el prop)*/
-            const stateLoading = extractValuesFromRxState(this.state, undefined);
-            const values = mixRxPropsState(initials, stateLoading);
-            const props = extractValueProps(values);
-
+            const syncProps = getLoadingProps(this.state, this.map);
+            const props = extractValueProps(syncProps);
 
             const Comp = this.props.loading || (() => null);
             return <Comp {...props} />;

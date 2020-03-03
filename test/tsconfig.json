@@ -15,7 +15,7 @@
             "dom"
         ],
         "downlevelIteration": true,
-        "declaration": true,
+        "declaration": false,
         "noImplicitThis": true
     }
 }

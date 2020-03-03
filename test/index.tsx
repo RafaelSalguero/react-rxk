@@ -4,6 +4,8 @@ import * as DOM from "react-dom";
 import * as rx from "rxjs";
 import * as rxOp from "rxjs/operators";
 import { ComponenteConStateRx } from "./state";
+import { RxfyScalar } from "../src";
+import { syncResolve } from "keautils";
 
 function delay(ms: number): Promise<void> {
     return new Promise(resolve => window.setTimeout(resolve, ms));
@@ -126,12 +128,9 @@ class SimpleText extends React.PureComponent<{ text: string, loading?: boolean }
 
     render() {
         return (
-            <div>
-                <span>
-                    {this.props.text}
-                </span>
-                <br />
-            </div>
+            <span>
+                {this.props.text}
+            </span>
         );
     }
 }
@@ -139,7 +138,7 @@ const cargando = <span>cargando...</span>;
 
 
 let contador = 0;
-export class App extends React.Component<{}, { prom: Promise<string> | string, promValue: number, cambiar: number, promValueProm: Promise<number> }> {
+export class App extends React.Component<{}, { prom: RxfyScalar<string>, promValue: number, cambiar: number, promValueProm: Promise<number>, mount: boolean }> {
     private timerA = rx.timer(0, 1000);
     private timerB = rx.timer(0, 800);
     private timerC = rx.timer(0, 100);
@@ -160,7 +159,8 @@ export class App extends React.Component<{}, { prom: Promise<string> | string, p
             prom: "Hola hola",
             promValue: 12,
             cambiar: 0,
-            promValueProm: delay(5000).then(x => 1)
+            promValueProm: delay(5000).then(x => 1),
+            mount: true
         };
 
         setTimeout(() => {
@@ -187,14 +187,17 @@ export class App extends React.Component<{}, { prom: Promise<string> | string, p
     render() {
         return (
             <div>
-                <Rx
-                    render={SimpleText}
-                    loading={<span>cargando...</span>}
-                    props={{
-                        text: this.state.prom
-                    }}
-                    debug
-                />
+                {
+                    this.state.mount &&
+                    <Rx
+                        render={SimpleText}
+                        loading={props => <span>cargando... {props.text}</span>}
+                        props={{
+                            text: this.state.prom
+                        }}
+                        debug
+                    />
+                }
 
                 <br />
                 <button onClick={() => this.setState({
@@ -209,8 +212,46 @@ export class App extends React.Component<{}, { prom: Promise<string> | string, p
                     Async fast
                 </button>
 
+                <button onClick={() => this.setState({
+                    prom: (async () => {
+                        const cont = contador++;
+                        await delay(5000 * Math.random());
+                        return "" + cont;
+                    })()
+                })} >
+                    Async random delay
+                </button>
+
+                <button onClick={() => this.setState({
+                    prom: syncResolve("" + (contador++))
+                })} >
+                    Sync promise
+                </button>
+
+                <button onClick={() => this.setState({
+                    prom: rx.timer(500, 500).pipe(rxOp.map(x => "obs value: " + x))
+                })} >
+                    Obs
+                </button>
+
+                <button onClick={() => this.setState({
+                    prom: delay(1000).then(x => {
+                        throw new Error("este es un mensaje de error");
+                    })
+                })} >
+                    Promise error
+                </button>
+
                 <button onClick={this.onClickSync} >
                     Sync
+                </button>
+
+                <button onClick={() => this.setState({ cambiar: Math.random() })} >
+                    State change
+                </button>
+
+                <button onClick={() => this.setState({ mount: !this.state.mount })} >
+                    (un)mount
                 </button>
             </div>
         )

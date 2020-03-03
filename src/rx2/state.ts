@@ -1,9 +1,10 @@
 import { SyncValue, SubscriptionMap, SubValue } from "./subscription";
 import { RxfyScalar, Rxfy } from "../utils";
-import { mapObject, enumObject, filterObject } from "keautils";
+import { mapObject, enumObject, filterObject, mergeObj } from "keautils";
 
-interface RxStateProp<T> {
-    /**Valor síncrono del prop */
+/**Un prop del state del Rx */
+export interface RxStateProp<T> {
+    /**Valor síncrono del prop, ya sea el valor resuelto o el error. (Los valores de "loading" no aparecen en el state) */
     value: SyncValue<T>;
     /**Valor original, se usa para comparar el prop y saber si cambió */
     original: RxfyScalar<T>;
@@ -59,6 +60,7 @@ export function extractInitialsFromSubscriptionMap<T>(map: SubscriptionMap<T>): 
     return ret;
 }
 
+
 /**Extrae los valores actuales de un @see RxState
  * @param originalProps Props originales, si se establece, sólo se devuelven los props que encaje el valor original de state contra el del prop, esto indica
  * que el state esta actualiado con respecto al props. Si se establece undefined no se filtra, y devuelve resultados no actualizados (esto es util para dibujar
@@ -92,8 +94,43 @@ export function mixRxPropsState<T>(initials: RxSyncProps<T>, stateValues: RxSync
     })
 }
 
-/**Extrae el props que se le debe de pasar al componente dibujado de un objeto @see RxSyncProps con los valores resuletos */
-export function extractValueProps<T>(syncProps: RxSyncProps<T>) : T {
-    const r =  mapObject(syncProps,x => (x as SubValue<T[keyof T]>)?.value!);
-    return r as any;
+
+
+/**Extrae el props que se le debe de pasar al componente dibujado de un objeto @see RxSyncProps con los valores resuletos
+ * Note que extrae los valores 
+*/
+export function extractValueProps<T>(syncProps: RxSyncProps<T>): T {
+    const r = mapObject(syncProps, x =>
+        x?.type == "value" ? x.value :
+            x?.type == "loading" ? x.old?.value :
+                undefined as any
+    );
+    return r;
+}
+
+/**Obtiene los props que se le deben de pasar al componente de cargando */
+export function getLoadingProps<T>(state: RxState<T>, map: SubscriptionMap<T>) : RxSyncProps<T> {
+    const ret = mergeObj(state, map, (stateProp, mapProp): (SyncValue<any> | undefined) => {
+        if(mapProp?.initial.type== "value") {
+            //El valor esta resuelto en el map:
+            return mapProp?.initial;
+        }
+
+        if(stateProp?.original == mapProp?.original) {
+            //Si el state está actualizado, devuelve el valor en el state
+            return stateProp?.value;
+        }
+
+        //Inconsistencia entre el state y el prop (state se refiere a una instancia diferente del prop)
+        
+        //Si el prop tiene un valor old, ese es el bueno:
+        if(mapProp?.initial.type =="loading" && mapProp?.initial.old != undefined) {
+            return mapProp.initial.old;
+        }
+
+        //El valor del prop anterior es el bueno:
+        return stateProp?.value;
+    });
+
+    return ret;
 }
