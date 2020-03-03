@@ -2,25 +2,24 @@ import { isValidElement } from "react";
 import { SubscriptionMap, subscribeMap, SyncValue, SubscribeMapLog, allSync, IgnoreMap, anyError, listErrors, unsubscribeAll } from "./subscription";
 import React = require("react");
 import { RxState, extractValueProps, RxStateProp, getSyncProps, combineStateProp } from "./state";
-import { Rxfy } from "../utils";
+import { Rxfy, ComponentType, createJSX } from "../utils";
 import { ErrorViewProps, ErrorView } from "../error";
-
 
 
 export interface RxProps2<T> {
     /**Componente a dibujar cuando todos los props esten resueltos */
-    render: React.ComponentType<T>;
-
+    render: ComponentType<T> | React.ReactNode;
+    
     /**Props que pueden ser promesas u observables */
     props: Rxfy<T>;
 
     /**Componente a mostrar cuando se esté cargando. Este componente recibirá props indefinidos o inconsistentes entre sí mientras se este cargando.
      * Por default dibuja lo mismo que @see render
     */
-    loading?: React.ComponentType<Partial<T>> | React.ReactElement;
+    loading?: ComponentType<Partial<T>> | React.ReactNode;
 
     /**Componente a mostrar cuando algun prop tenga un error */
-    error?: React.ComponentType<ErrorViewProps<T>> | React.ReactElement;
+    error?: ComponentType<ErrorViewProps<T>> | React.ReactNode;
 
     /**Indica que props deben de ser ignorados por el Rx y pasarse tal cual al componente */
     ignore?: IgnoreMap<T>;
@@ -81,30 +80,24 @@ export class Rx<T> extends React.Component<RxProps2<T>, RxState<T>> {
             const props = extractValueProps(values);
             const Comp = this.props.render;
 
-            return <Comp {...props} />;
+            return createJSX(Comp , props );
 
         } else if (anyError(values)) {
             //Existe algun error
-            if (isValidElement(this.props.error)) {
-                return this.props.error;
-            }
-
             const errors = listErrors(values);
 
             const Comp = this.props.error || ErrorView;
-            return <Comp errores={errors} />;
+            return  createJSX(Comp, {errores: errors});
         }
 
         {
             //Algun valor está cargando
-            if (isValidElement(this.props.loading)) {
-                return this.props.loading;
-            }
-
             const props = extractValueProps(values);
 
-            const Comp = this.props.loading || this.props.render;
-            return <Comp {...props} />;
-        } 4
+            const Comp = this.props.loading || (this.props.render as ComponentType<Partial<T>>);
+            return createJSX(Comp, props);
+        }
     }
 }
+
+ 

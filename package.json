@@ -1,6 +1,6 @@
 {
   "name": "react-rxk",
-  "version": "6.0.2",
+  "version": "6.0.4",
   "description": "Higher order component to make any component accept RxJS observables as props",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -25,6 +25,7 @@
     "@types/react": "^16.9.17",
     "@types/react-dom": "^15.5.5",
     "awesome-typescript-loader": "^3.2.3",
+    "clean-webpack-plugin": "^3.0.0",
     "html-webpack-plugin": "^2.30.1",
     "react-dom": "^16.3.2",
     "typescript": "^3.7.5",

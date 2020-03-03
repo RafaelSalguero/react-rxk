@@ -8,17 +8,21 @@ export type Rxfy<T> = {
 };
 
 /**Devuelve si el componente es una clase de react */
-function isReactComponentClass<P>(x: React.ComponentType<P>): x is React.ComponentClass<P> {
+function isReactComponentClass<P>(x: any): x is React.ComponentClass<P> {
     //Note que prototype puede ser null:
     return ((x as React.ComponentClass<any>) as any).prototype?.isReactComponent != null;
 }
 
 /**Devuevle el JSX de un @see ReactComponent */
-export function createJSX<T>(Comp: React.ComponentType<T>, props: T): React.ReactNode {
-    if(isReactComponentClass(Comp)) {
-        return <Comp {... props} />;
-    } else {
-        //Si es una función se llama directamente:
-        return Comp(props);
-    }
+export function createJSX<T>(Comp: ComponentType<T>  | React.ReactNode, props: T): React.ReactNode {
+        if(isReactComponentClass(Comp)) {
+            return <Comp {... props} />;
+        } else if (typeof Comp =="function" ){
+            //Si es una función se llama directamente:
+            return Comp(props);
+        } else {
+            return Comp;
+        }
 }
+
+export type ComponentType<T> = React.ComponentClass<T> | ((props: T) => React.ReactNode);
