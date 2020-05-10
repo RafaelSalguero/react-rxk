@@ -1,10 +1,9 @@
 import { isValidElement } from "react";
 import { SubscriptionMap, subscribeMap, SyncValue, SubscribeMapLog, allSync, IgnoreMap, anyError, listErrors, unsubscribeAll } from "./subscription";
-import React = require("react");
 import { RxState, extractValueProps, RxStateProp, getSyncProps, combineStateProp } from "./state";
 import { Rxfy, ComponentType, createJSX } from "../utils";
 import { ErrorViewProps, ErrorView } from "../error";
-
+import * as React from "react";
 
 export interface RxProps2<T> {
     /**Componente a dibujar cuando todos los props esten resueltos */

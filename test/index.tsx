@@ -127,9 +127,12 @@ class SimpleText extends React.PureComponent<{ text: string, loading?: boolean }
 
     render() {
         return (
+            <div>
             <span>
                 {this.props.text}
             </span>
+            <input  />
+            </div>
         );
     }
 }
@@ -190,7 +193,7 @@ export class App extends React.Component<{}, { prom: RxfyScalar<string>, promVal
                     this.state.mount &&
                     <Rx
                         render={SimpleText}
-                        loading={props => <span>cargando... {props.text}</span>}
+                        loading={props => <SimpleText text="Cargando" />}
                         props={{
                             text: this.state.prom
                         }}

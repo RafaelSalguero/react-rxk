@@ -1,6 +1,7 @@
 {
     "compilerOptions": {
-        "module": "commonjs",
+        "module": "ES6",
+        "moduleResolution": "node",
         "target": "es5",
         "noImplicitAny": false,
         "sourceMap": true,
@@ -15,7 +16,6 @@
     },
     "exclude": [
         "dist",
-        "node_modules",
         "test"
     ]
 }
