@@ -1,6 +1,6 @@
 import { SyncValue, SubscriptionMap, SubValue } from "./subscription";
 import { RxfyScalar, Rxfy } from "../utils";
-import { mapObject, enumObject, filterObject, mergeObj } from "keautils";
+import { mapObject, enumObject, filterObject, mergeObj } from "simple-pure-utils";
 
 /**Un prop del state del Rx */
 export interface RxStateProp<T> {

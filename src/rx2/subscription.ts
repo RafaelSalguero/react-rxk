@@ -1,5 +1,5 @@
 import { Observable, isObservable } from "rxjs";
-import { isPromiseLike, mergeObj, enumObject, all, any } from "keautils";
+import { isPromiseLike, mergeObj, enumObject, all, any } from "simple-pure-utils";
 import { RxfyScalar, Rxfy } from "../utils";
 import { RxSyncProps } from "./state";
 import { PropError } from "../error";
